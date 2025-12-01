@@ -1,0 +1,25 @@
+project:
+  type: website
+  output-dir: docs
+
+website:
+  title: "MUSA 5080 Final Project"
+  navbar:
+    left:
+      - text: "Home"
+        href: index.qmd
+      - text: "Presentation"
+        href: presentation/presentation.qmd
+      - text: "Technical Appendix"
+        href: appendix/appendix.qmd
+
+format:
+  html:
+    theme: flatly
+    toc: true
+    code-fold: true
+
+execute:
+  echo: true
+  warning: false
+  message: false
