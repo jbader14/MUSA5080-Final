@@ -21,3 +21,5 @@ kableExtra
 here
 tidytext
 scales
+patchwork
+MASS
