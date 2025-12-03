@@ -45,6 +45,9 @@ library(gridExtra)
 library(knitr)
 library(kableExtra)
 
+library(ggplot2)
+library(scales)
+
 # here!
 library(here)
 
@@ -53,44 +56,6 @@ library(tidytext)
 
 # Get rid of scientific notation. We gotta look good!
 options(scipen = 999)
-```
-
-## Define Themes
-
-```{r themes}
-plotTheme <- theme(
-  plot.title = element_text(size = 14, face = "bold"),
-  plot.subtitle = element_text(size = 10),
-  plot.caption = element_text(size = 8),
-  axis.text.x = element_text(size = 10, angle = 45, hjust = 1),
-  axis.text.y = element_text(size = 10),
-  axis.title = element_text(size = 11, face = "bold"),
-  panel.background = element_blank(),
-  panel.grid.major = element_line(colour = "#D0D0D0", size = 0.2),
-  panel.grid.minor = element_blank(),
-  axis.ticks = element_blank(),
-  legend.position = "right"
-)
-
-mapTheme <- theme(
-  plot.title = element_text(size = 14, face = "bold"),
-  plot.subtitle = element_text(size = 10),
-  plot.caption = element_text(size = 8),
-  axis.line = element_blank(),
-  axis.text = element_blank(),
-  axis.ticks = element_blank(),
-  axis.title = element_blank(),
-  panel.background = element_blank(),
-  panel.border = element_blank(),
-  panel.grid.major = element_line(colour = 'transparent'),
-  panel.grid.minor = element_blank(),
-  legend.position = "right",
-  plot.margin = margin(1, 1, 1, 1, 'cm'),
-  legend.key.height = unit(1, "cm"),
-  legend.key.width = unit(0.2, "cm")
-)
-
-palette5 <- c("#eff3ff", "#bdd7e7", "#6baed6", "#3182bd", "#08519c")
 ```
 
 ## Set Census API Key
@@ -102,8 +67,13 @@ census_api_key(key)
 
 # Load Data
 ```{r load_data}
+# Tract shape file
+tracts_sf <- tracts(state = "PA", county = "Philadelphia", year = 2023) |>
+  st_as_sf()
+
 # Tract-level ridership data
-bus_tract <- readr::read_csv("data/Bus_Ridership_by_Census_Tract.csv")
+bus_tract <- readr::read_csv("data/Bus_Ridership_by_Census_Tract.csv") |>
+  mutate(Census_Tract_ID = as.character(Census_Tract_ID))
 
 # Council-district-level ridership data
 bus_district <- readr::read_csv("data/Bus_Ridership_by_District.csv")
@@ -132,21 +102,27 @@ bus_stop_fa2023 <- readr::read_csv("data/Fall_2023.csv")
 
 # Combine bus stop data into single dataframe
 bus_stops <- bind_rows(
-  bus_stop_fa2014 %>% mutate(year = 2014),
-  bus_stop_fa2015 %>% mutate(year = 2015),
-  bus_stop_fa2016 %>% mutate(year = 2016),
-  bus_stop_fa2017 %>% mutate(year = 2017),
-  bus_stop_fa2018 %>% mutate(year = 2018),
-  bus_stop_fa2019 %>% mutate(year = 2019),
-  bus_stop_fa2021 %>% mutate(year = 2021),
-  bus_stop_fa2022 %>% mutate(year = 2022),
-  bus_stop_fa2023 %>% mutate(year = 2023)
+  bus_stop_fa2014 |> mutate(year = 2014),
+  bus_stop_fa2015 |> mutate(year = 2015),
+  bus_stop_fa2016 |> mutate(year = 2016),
+  bus_stop_fa2017 |> mutate(year = 2017),
+  bus_stop_fa2018 |> mutate(year = 2018),
+  bus_stop_fa2019 |> mutate(year = 2019),
+  bus_stop_fa2021 |> mutate(year = 2021),
+  bus_stop_fa2022 |> mutate(year = 2022),
+  bus_stop_fa2023 |> mutate(year = 2023)
 )
 ```
 
-# Clean Data
-```{r clean_data}
-
+# Preprocess Data
+```{r preprocess_data}
+# Filter to Philadelphia County and clean fields for tract-level data
+bus_tract_phila <- bus_tract |>
+  filter(County_Name == "Philadelphia County") |>
+  mutate(
+    year = as.integer(stringr::str_extract(Season, "\\d{4}")),
+    total_ridership = On_ + Off_
+  )
 ```
 
 # Exploratory Data Analysis
@@ -154,7 +130,7 @@ bus_stops <- bind_rows(
 ## Monthly Average Daily Ridership by Transit Mode
 ```{r mode_line_chart}
 # Engineer a date feature for plotting
-transit_mode_monthly <- transit_mode %>%
+transit_mode_monthly <- transit_mode |>
   mutate(
     date = ymd(paste(Calendar_Year, Calendar_Month, "01", sep = "-"))
   )
@@ -176,18 +152,10 @@ ggplot(transit_mode_monthly,
 ```
 
 ## Total SEPTA Bus Ridership by Day of Week
-```{r}
-# Filter to Philadelphia County and clean fields
-bus_tract_phila <- bus_tract %>%
-  filter(County_Name == "Philadelphia County") %>%
-  mutate(
-    year = as.integer(stringr::str_extract(Season, "\\d{4}")),
-    total_ridership = On_ + Off_
-  )
-
+```{r ridership_dow}
 # Aggregate to total ridership by year and day-of-week
-bus_tract_year_dow <- bus_tract_phila %>%
-  group_by(year, Day_of_Week) %>%
+bus_tract_year_dow <- bus_tract_phila |>
+  group_by(year, Day_of_Week) |>
   summarise(
     total_ridership = sum(total_ridership, na.rm = TRUE),
     .groups = "drop"
@@ -207,6 +175,143 @@ ggplot(bus_tract_year_dow,
   ) +
   theme_minimal()
 
+```
+
+## Pre vs. Post COVID Ridership Comparison
+```{r pre_post_covid}
+# Aggregate to one row per tract-year
+tract_19_21 <- bus_tract_phila |>
+  filter(
+    year %in% c(2019, 2021)
+  ) |>
+  group_by(Census_Tract_ID, year) |>
+  summarise(
+    total_ridership = sum(total_ridership, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  # Pivot to wide format for plotting
+  pivot_wider(
+    names_from = year,
+    values_from = total_ridership,
+    names_prefix = "y"
+  ) |>
+  # Drop tracts with missing data
+  tidyr::drop_na(y2019, y2021)
+
+# Plot 2019 vs 2021 ridership scatterplot
+ggplot(tract_19_21,
+       aes(x = y2019, y = y2021)) +
+  geom_point(alpha = 0.6) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  labs(
+    title = "Tract-Level Weekday Ridership: 2019 vs 2021",
+    subtitle = "Each point represents a census tract in Philadelphia County",
+    x = "2019 Ridership",
+    y = "2021 Ridership"
+  ) +
+  theme_minimal()
+```
+
+## Tract-Level Total Ridership (Fall 2023)
+```{r tract_rider_map_2023}
+# Tract-level total ridership, Fall 2023
+tract_2023 <- bus_tract_phila |>
+  filter(year == 2023) |>
+  group_by(Census_Tract_ID) |>
+  summarise(
+    total_ridership = sum(total_ridership, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  filter(!is.na(total_ridership), total_ridership > 0) |>
+  # Quintiles to view meaningful patterns in plot
+  mutate(
+    ridership_q = cut_number(
+      total_ridership,
+      n = 5,
+      labels = c("Lowest 20%", "20–40%", "40–60%", "60–80%", "Top 20%")
+    )
+  )
+
+# Join to tract geometries
+tract_map_2023 <- tracts_sf |>
+  mutate(GEOID = as.character(GEOID)) |>
+  left_join(tract_2023, by = c("GEOID" = "Census_Tract_ID"))
+
+# Plot quintiles of total ridership
+ggplot(tract_map_2023) +
+  geom_sf(aes(fill = ridership_q), color = NA) +
+  scale_fill_brewer(
+    palette = "YlGnBu",
+    na.value = "grey90",
+    name = "Quintile of\nWeekday Ridership"
+  ) +
+  labs(
+    title = "Bus Ridership by Census Tract (Fall 2023)",
+    subtitle = "Tracts grouped into quintiles by total weekday boardings + deepartures",
+  ) +
+  theme_minimal()
+```
+
+## Percent Change in Tract-Level Ridership (2021-2023)
+```{r tract_perc_chg_19_23}
+# Tract-level 2019 & 2023 totals and percent change
+tract_change_21_23 <- bus_tract_phila |>
+  filter(
+    County_Name == "Philadelphia County",
+    Season %in% c("Fall 2021", "Fall 2023"),
+    #Day_of_Week == "Weekday"
+  ) |>
+  group_by(Census_Tract_ID, year) |>
+  summarise(
+    total_ridership = sum(total_ridership, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  tidyr::pivot_wider(
+    names_from = year,
+    values_from = total_ridership,
+    names_prefix = "y"
+  ) |>
+  # Needs data from both 2021 and 2023
+  filter(!is.na(y2021), !is.na(y2023), y2021 > 0) |>
+  mutate(
+    pct_change_21_23 = 100 * (y2023 - y2021) / y2021
+  )
+
+# Bracket into percentage bins for plotting
+breaks <- c(-Inf, -50, -25, -10, 10, 25, 50, Inf)
+labels <- c("≤ -50%", "-50% to -25%", "-25% to -10%",
+            "-10% to +10%", "+10% to +25%", "+25% to +50%", "≥ +50%")
+
+tract_change_21_23 <- tract_change_21_23 |>
+  mutate(
+    pct_change_cat = cut(
+      pct_change_21_23,
+      breaks = breaks,
+      labels = labels,
+      include.lowest = TRUE,
+      ordered_result = TRUE
+    )
+  )
+
+# Join to tract geometries
+tract_map_change_21_23 <- tracts_sf |>
+  mutate(GEOID = as.character(GEOID)) |>
+  left_join(tract_change_21_23, by = c("GEOID" = "Census_Tract_ID"))
+
+# Plot map
+ggplot(tract_map_change_21_23) +
+  geom_sf(aes(fill = pct_change_cat), color = NA) +
+  scale_fill_brewer(
+    palette = "RdYlGn",
+    na.value = "grey90",
+    name = "% change\n2021–2023"
+  ) +
+  labs(
+    title = "Percent Change in Bus Ridership by Census Tract",
+    subtitle = "From Fall 2021 - 2023; red = loss, green = gain",
+    caption = "Measures Post-COVID Recovery in SEPTA Usage"
+  ) +
+  theme_minimal()
 ```
 
 

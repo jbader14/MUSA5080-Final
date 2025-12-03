@@ -20,3 +20,4 @@ knitr
 kableExtra
 here
 tidytext
+scales
