@@ -1,5 +1,212 @@
 ---
 title: "Technical Appendix"
-format: html
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+    code_download: true
+    number-sections: true
 ---
+
+# Setup
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  cache = TRUE
+)
+```
+
+## Load Libraries
+
+```{r load_libraries}
+# Core tidyverse
+library(tidyverse)
+library(janitor)
+library(lubridate)
+
+# Spatial data
+library(sf)
+library(tigris)
+
+# Census data
+library(tidycensus)
+
+# Weather data
+library(riem)  # For Philadelphia weather from ASOS stations
+
+# Visualization
+library(viridis)
+library(grid)
+library(gridExtra)
+library(knitr)
+library(kableExtra)
+
+# here!
+library(here)
+
+# Extra
+library(tidytext)
+
+# Get rid of scientific notation. We gotta look good!
+options(scipen = 999)
+```
+
+## Define Themes
+
+```{r themes}
+plotTheme <- theme(
+  plot.title = element_text(size = 14, face = "bold"),
+  plot.subtitle = element_text(size = 10),
+  plot.caption = element_text(size = 8),
+  axis.text.x = element_text(size = 10, angle = 45, hjust = 1),
+  axis.text.y = element_text(size = 10),
+  axis.title = element_text(size = 11, face = "bold"),
+  panel.background = element_blank(),
+  panel.grid.major = element_line(colour = "#D0D0D0", size = 0.2),
+  panel.grid.minor = element_blank(),
+  axis.ticks = element_blank(),
+  legend.position = "right"
+)
+
+mapTheme <- theme(
+  plot.title = element_text(size = 14, face = "bold"),
+  plot.subtitle = element_text(size = 10),
+  plot.caption = element_text(size = 8),
+  axis.line = element_blank(),
+  axis.text = element_blank(),
+  axis.ticks = element_blank(),
+  axis.title = element_blank(),
+  panel.background = element_blank(),
+  panel.border = element_blank(),
+  panel.grid.major = element_line(colour = 'transparent'),
+  panel.grid.minor = element_blank(),
+  legend.position = "right",
+  plot.margin = margin(1, 1, 1, 1, 'cm'),
+  legend.key.height = unit(1, "cm"),
+  legend.key.width = unit(0.2, "cm")
+)
+
+palette5 <- c("#eff3ff", "#bdd7e7", "#6baed6", "#3182bd", "#08519c")
+```
+
+## Set Census API Key
+
+```{r census_key}
+key <- Sys.getenv("CENSUS_API_KEY")
+census_api_key(key)
+```
+
+# Load Data
+```{r load_data}
+# Tract-level ridership data
+bus_tract <- readr::read_csv("data/Bus_Ridership_by_Census_Tract.csv")
+
+# Council-district-level ridership data
+bus_district <- readr::read_csv("data/Bus_Ridership_by_District.csv")
+
+# System-level ridership data by mode
+transit_mode <- readr::read_csv("data/Avg_Daily_Ridership_By_Mode.csv")
+
+# Bus stop data from 2021-2023 (Post-COVID)
+bus_stop_fa2014 <- readr::read_csv("data/Fall_2014.csv")
+
+bus_stop_fa2015 <- readr::read_csv("data/Fall_2015.csv")
+
+bus_stop_fa2016 <- readr::read_csv("data/Fall_2016.csv")
+
+bus_stop_fa2017 <- readr::read_csv("data/Fall_2017.csv")
+
+bus_stop_fa2018 <- readr::read_csv("data/Fall_2018.csv")
+
+bus_stop_fa2019 <- readr::read_csv("data/Fall_2019.csv")
+
+bus_stop_fa2021 <- readr::read_csv("data/Fall_2021.csv")
+
+bus_stop_fa2022 <- readr::read_csv("data/Fall_2022.csv")
+
+bus_stop_fa2023 <- readr::read_csv("data/Fall_2023.csv")
+
+# Combine bus stop data into single dataframe
+bus_stops <- bind_rows(
+  bus_stop_fa2014 %>% mutate(year = 2014),
+  bus_stop_fa2015 %>% mutate(year = 2015),
+  bus_stop_fa2016 %>% mutate(year = 2016),
+  bus_stop_fa2017 %>% mutate(year = 2017),
+  bus_stop_fa2018 %>% mutate(year = 2018),
+  bus_stop_fa2019 %>% mutate(year = 2019),
+  bus_stop_fa2021 %>% mutate(year = 2021),
+  bus_stop_fa2022 %>% mutate(year = 2022),
+  bus_stop_fa2023 %>% mutate(year = 2023)
+)
+```
+
+# Clean Data
+```{r clean_data}
+
+```
+
+# Exploratory Data Analysis
+
+## Monthly Average Daily Ridership by Transit Mode
+```{r mode_line_chart}
+# Engineer a date feature for plotting
+transit_mode_monthly <- transit_mode %>%
+  mutate(
+    date = ymd(paste(Calendar_Year, Calendar_Month, "01", sep = "-"))
+  )
+
+# Plot line chart with a line for each transit mode over time
+ggplot(transit_mode_monthly,
+       aes(x = date,
+           y = Average_Daily_Ridership,
+           color = Mode)) +
+  geom_line(linewidth = 1) +
+  labs(
+    title = "Monthly Average Daily Ridership by Transit Mode",
+    subtitle = "SEPTA in Philadelphia from 2019 - 2025",
+    x = "Date",
+    y = "Average Daily Ridership",
+    color = "Transit Mode"
+  ) +
+  theme_minimal()
+```
+
+## Total SEPTA Bus Ridership by Day of Week
+```{r}
+# Filter to Philadelphia County and clean fields
+bus_tract_phila <- bus_tract %>%
+  filter(County_Name == "Philadelphia County") %>%
+  mutate(
+    year = as.integer(stringr::str_extract(Season, "\\d{4}")),
+    total_ridership = On_ + Off_
+  )
+
+# Aggregate to total ridership by year and day-of-week
+bus_tract_year_dow <- bus_tract_phila %>%
+  group_by(year, Day_of_Week) %>%
+  summarise(
+    total_ridership = sum(total_ridership, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Minimal line plot of total ridership over time by day-of-week
+ggplot(bus_tract_year_dow,
+       aes(x = year, y = total_ridership, color = Day_of_Week)) +
+  geom_line(linewidth = 0.9) +
+  geom_point(size = 1.8) +
+  labs(
+    title = "Total SEPTA Bus Ridership by Day of Week",
+    subtitle = "Average daily boardings + departures for Fall only",
+    x = "Year",
+    y = "Total Average Daily Ridership",
+    color = "Day of Week"
+  ) +
+  theme_minimal()
+
+```
+
 

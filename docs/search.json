@@ -5,5 +5,47 @@
     "title": "MUSA 5080 Final Project",
     "section": "",
     "text": "Project Overview:\n\nMembers: Jack Bader, Joey Cahill, Sam Sen,\nDate: December 8th, 2025"
+  },
+  {
+    "objectID": "appendix/appendix.html",
+    "href": "appendix/appendix.html",
+    "title": "Technical Appendix",
+    "section": "",
+    "text": "Code\n# Core tidyverse\nlibrary(tidyverse)\nlibrary(janitor)\nlibrary(lubridate)\n\n# Spatial data\nlibrary(sf)\nlibrary(tigris)\n\n# Census data\nlibrary(tidycensus)\n\n# Weather data\nlibrary(riem)  # For Philadelphia weather from ASOS stations\n\n# Visualization\nlibrary(viridis)\nlibrary(grid)\nlibrary(gridExtra)\nlibrary(knitr)\nlibrary(kableExtra)\n\n# here!\nlibrary(here)\n\n# Extra\nlibrary(tidytext)\n\n# Get rid of scientific notation. We gotta look good!\noptions(scipen = 999)\n\n\n\n\n\n\n\nCode\nplotTheme &lt;- theme(\n  plot.title = element_text(size = 14, face = \"bold\"),\n  plot.subtitle = element_text(size = 10),\n  plot.caption = element_text(size = 8),\n  axis.text.x = element_text(size = 10, angle = 45, hjust = 1),\n  axis.text.y = element_text(size = 10),\n  axis.title = element_text(size = 11, face = \"bold\"),\n  panel.background = element_blank(),\n  panel.grid.major = element_line(colour = \"#D0D0D0\", size = 0.2),\n  panel.grid.minor = element_blank(),\n  axis.ticks = element_blank(),\n  legend.position = \"right\"\n)\n\nmapTheme &lt;- theme(\n  plot.title = element_text(size = 14, face = \"bold\"),\n  plot.subtitle = element_text(size = 10),\n  plot.caption = element_text(size = 8),\n  axis.line = element_blank(),\n  axis.text = element_blank(),\n  axis.ticks = element_blank(),\n  axis.title = element_blank(),\n  panel.background = element_blank(),\n  panel.border = element_blank(),\n  panel.grid.major = element_line(colour = 'transparent'),\n  panel.grid.minor = element_blank(),\n  legend.position = \"right\",\n  plot.margin = margin(1, 1, 1, 1, 'cm'),\n  legend.key.height = unit(1, \"cm\"),\n  legend.key.width = unit(0.2, \"cm\")\n)\n\npalette5 &lt;- c(\"#eff3ff\", \"#bdd7e7\", \"#6baed6\", \"#3182bd\", \"#08519c\")\n\n\n\n\n\n\n\nCode\nkey &lt;- Sys.getenv(\"CENSUS_API_KEY\")\ncensus_api_key(key)"
+  },
+  {
+    "objectID": "appendix/appendix.html#load-libraries",
+    "href": "appendix/appendix.html#load-libraries",
+    "title": "Technical Appendix",
+    "section": "",
+    "text": "Code\n# Core tidyverse\nlibrary(tidyverse)\nlibrary(janitor)\nlibrary(lubridate)\n\n# Spatial data\nlibrary(sf)\nlibrary(tigris)\n\n# Census data\nlibrary(tidycensus)\n\n# Weather data\nlibrary(riem)  # For Philadelphia weather from ASOS stations\n\n# Visualization\nlibrary(viridis)\nlibrary(grid)\nlibrary(gridExtra)\nlibrary(knitr)\nlibrary(kableExtra)\n\n# here!\nlibrary(here)\n\n# Extra\nlibrary(tidytext)\n\n# Get rid of scientific notation. We gotta look good!\noptions(scipen = 999)"
+  },
+  {
+    "objectID": "appendix/appendix.html#define-themes",
+    "href": "appendix/appendix.html#define-themes",
+    "title": "Technical Appendix",
+    "section": "",
+    "text": "Code\nplotTheme &lt;- theme(\n  plot.title = element_text(size = 14, face = \"bold\"),\n  plot.subtitle = element_text(size = 10),\n  plot.caption = element_text(size = 8),\n  axis.text.x = element_text(size = 10, angle = 45, hjust = 1),\n  axis.text.y = element_text(size = 10),\n  axis.title = element_text(size = 11, face = \"bold\"),\n  panel.background = element_blank(),\n  panel.grid.major = element_line(colour = \"#D0D0D0\", size = 0.2),\n  panel.grid.minor = element_blank(),\n  axis.ticks = element_blank(),\n  legend.position = \"right\"\n)\n\nmapTheme &lt;- theme(\n  plot.title = element_text(size = 14, face = \"bold\"),\n  plot.subtitle = element_text(size = 10),\n  plot.caption = element_text(size = 8),\n  axis.line = element_blank(),\n  axis.text = element_blank(),\n  axis.ticks = element_blank(),\n  axis.title = element_blank(),\n  panel.background = element_blank(),\n  panel.border = element_blank(),\n  panel.grid.major = element_line(colour = 'transparent'),\n  panel.grid.minor = element_blank(),\n  legend.position = \"right\",\n  plot.margin = margin(1, 1, 1, 1, 'cm'),\n  legend.key.height = unit(1, \"cm\"),\n  legend.key.width = unit(0.2, \"cm\")\n)\n\npalette5 &lt;- c(\"#eff3ff\", \"#bdd7e7\", \"#6baed6\", \"#3182bd\", \"#08519c\")"
+  },
+  {
+    "objectID": "appendix/appendix.html#set-census-api-key",
+    "href": "appendix/appendix.html#set-census-api-key",
+    "title": "Technical Appendix",
+    "section": "",
+    "text": "Code\nkey &lt;- Sys.getenv(\"CENSUS_API_KEY\")\ncensus_api_key(key)"
+  },
+  {
+    "objectID": "appendix/appendix.html#monthly-average-daily-ridership-by-transit-mode",
+    "href": "appendix/appendix.html#monthly-average-daily-ridership-by-transit-mode",
+    "title": "Technical Appendix",
+    "section": "Monthly Average Daily Ridership by Transit Mode",
+    "text": "Monthly Average Daily Ridership by Transit Mode\n\n\nCode\n# Engineer a date feature for plotting\ntransit_mode_monthly &lt;- transit_mode %&gt;%\n  mutate(\n    date = ymd(paste(Calendar_Year, Calendar_Month, \"01\", sep = \"-\"))\n  )\n\n# Plot line chart with a line for each transit mode over time\nggplot(transit_mode_monthly,\n       aes(x = date,\n           y = Average_Daily_Ridership,\n           color = Mode)) +\n  geom_line(linewidth = 1) +\n  labs(\n    title = \"Monthly Average Daily Ridership by Transit Mode\",\n    subtitle = \"SEPTA in Philadelphia from 2019 - 2025\",\n    x = \"Date\",\n    y = \"Average Daily Ridership\",\n    color = \"Transit Mode\"\n  ) +\n  theme_minimal()"
+  },
+  {
+    "objectID": "appendix/appendix.html#total-bus-ridership-by-day-of-week-philadelphia-census-tracts",
+    "href": "appendix/appendix.html#total-bus-ridership-by-day-of-week-philadelphia-census-tracts",
+    "title": "Technical Appendix",
+    "section": "Total Bus Ridership by Day of Week, Philadelphia Census Tracts",
+    "text": "Total Bus Ridership by Day of Week, Philadelphia Census Tracts\n\n\nCode\n# Filter to Philadelphia County and clean fields\nbus_tract_phila &lt;- bus_tract %&gt;%\n  filter(County_Name == \"Philadelphia County\") %&gt;%\n  mutate(\n    year = as.integer(stringr::str_extract(Season, \"\\\\d{4}\")),\n    total_ridership = On_ + Off_\n  )\n\n# Aggregate to total ridership by year and day-of-week\nbus_tract_year_dow &lt;- bus_tract_phila %&gt;%\n  group_by(year, Day_of_Week) %&gt;%\n  summarise(\n    total_ridership = sum(total_ridership, na.rm = TRUE),\n    .groups = \"drop\"\n  )\n\n# Minimal line plot of total ridership over time by day-of-week\nggplot(bus_tract_year_dow,\n       aes(x = year, y = total_ridership, color = Day_of_Week)) +\n  geom_line(linewidth = 0.9) +\n  geom_point(size = 1.8) +\n  labs(\n    title = \"Total SEPTA Bus Ridership by Day of Week\",\n    subtitle = \"Average daily boardings + departures for Fall only\",\n    x = \"Year\",\n    y = \"Total Average Daily Ridership\",\n    color = \"Day of Week\"\n  ) +\n  theme_minimal()"
   }
 ]
