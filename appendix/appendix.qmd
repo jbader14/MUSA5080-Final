@@ -67,96 +67,176 @@ key <- Sys.getenv("CENSUS_API_KEY")
 census_api_key(key)
 ```
 
-# Load Data
-```{r load_data}
-# Tract shape file
-tracts_sf <- tracts(state = "PA", county = "Philadelphia", year = 2023) |>
-  st_as_sf()
+# Load Spatial and System Data
+```{r load_ss_data}
+# 1. Spatial Boundaries (Tracts)
+tracts_sf <- tracts(state = "PA", county = "Philadelphia", year = 2021, cb = TRUE) |>
+  st_transform(26918) |>
+  dplyr::select(GEOID, geometry)
 
-# Tract-level ridership data
-bus_tract <- readr::read_csv("data/Bus_Ridership_by_Census_Tract.csv") |>
-  mutate(Census_Tract_ID = as.character(Census_Tract_ID))
+# 2. Bus Data by District
+bus_district <- read_csv("data/Bus_Ridership_by_District.csv")
 
-# Council-district-level ridership data
-bus_district <- readr::read_csv("data/Bus_Ridership_by_District.csv")
+# 3. Transit Data by Mode
+transit_mode <- read_csv("data/Avg_Daily_Ridership_By_Mode.csv")
 
-# System-level ridership data by mode
-transit_mode <- readr::read_csv("data/Avg_Daily_Ridership_By_Mode.csv")
+# 4. Bus Shelters 
+bus_shelters <- st_read("data/Bus_Shelters.geojson") |> st_transform(26918)
 
-# All transit stops
-all_stops <- st_read("data/all_transit_stops.geojson")
+# 5. All Transit Stops
+all_stops <- st_read("data/all_transit_stops.geojson") |>
+  st_transform(26918)
+```
+# Load Ridership Data
+```{r load_ridership_data}
+# 1. Tract-Level Ridership (Raw)
+bus_tract_raw <- read_csv("data/Bus_Ridership_by_Census_Tract.csv") |>
+  clean_names() |>
+  mutate(census_tract_id = as.character(census_tract_id))
 
-# Bus stop data from 2021-2023 (Post-COVID)
-bus_stop_fa2014 <- readr::read_csv("data/Fall_2014.csv")
+# 2. Stop-Level Ridership (Raw List -> Combined Dataframe)
+stops_files <- list.files("data", pattern = "Fall_.*\\.csv", full.names = TRUE)
 
-bus_stop_fa2015 <- readr::read_csv("data/Fall_2015.csv")
+# 3. Combine all bus stop files into a single df
+bus_stops_raw <- stops_files |>
+  map_dfr(function(file) {
+    read_csv(file) |>
+      mutate(year = as.integer(str_extract(file, "\\d{4}"))) |>
+      clean_names() |>
+      mutate(across(everything(), as.character)) 
+  })
+```
 
-bus_stop_fa2016 <- readr::read_csv("data/Fall_2016.csv")
+# Data Preprocessing and Cleaning
 
-bus_stop_fa2017 <- readr::read_csv("data/Fall_2017.csv")
+## Clean Ridership Data
+```{r clean_ridership}
+# A. Clean Tract Data
+bus_tract_clean <- bus_tract_raw |>
+  filter(county_name == "Philadelphia County") |>
+  mutate(
+    year = as.integer(str_extract(season, "\\d{4}")),
+    total_ridership = on + off
+  ) |>
+  # Keep 2017+ for consistent analysis
+  filter(year >= 2017)
 
-bus_stop_fa2018 <- readr::read_csv("data/Fall_2018.csv")
+# B. Clean Stop Data
+bus_stops_clean <- bus_stops_raw |>
+  type_convert() |> # Convert numbers back to numeric
+  filter(year >= 2017) |>
+  # Coalesce the mismatched column names from different years
+  mutate(
+    weekday_on  = coalesce(wkdy_ons, weekday_on),
+    weekday_off = coalesce(wkdy_offs, weekday_of, weekday_of),
+    saturday_on = coalesce(sat_ons, saturday_o),
+    saturday_off = coalesce(sat_offs, saturday_1),
+    sunday_on   = coalesce(sun_ons, sunday_ons),
+    sunday_off  = coalesce(sun_offs, sunday_off),
+    
+    total_weekday = weekday_on + weekday_off
+  ) |>
+  # Keep only the clean columns
+  dplyr::select(year, stop_code, stop_name = stop, route, total_weekday, 
+         weekday_on, weekday_off, lat, lon)
+```
 
-bus_stop_fa2019 <- readr::read_csv("data/Fall_2019.csv")
+## Filter Transit Stops (Bus vs. Rail/Trolley)
+```{r clean_transit_stops}
+# Define Rail/Trolley Codes to EXCLUDE
+rail_codes <- c("BSL", "MFL", "HRS", "T1", "T2", "T3", "T4", "T5")
 
-bus_stop_fa2021 <- readr::read_csv("data/Fall_2021.csv")
+# 1. Rail Stops (for distance calc)
+stops_rail <- all_stops |>
+  filter(LineAbbr %in% rail_codes)
 
-bus_stop_fa2022 <- readr::read_csv("data/Fall_2022.csv")
+# 2. Bus Stops (Everything else, including T4 Bus, Owls, Trackless)
+stops_bus <- all_stops |>
+  filter(!LineAbbr %in% rail_codes)
+```
 
-bus_stop_fa2023 <- readr::read_csv("data/Fall_2023.csv")
+# Feature Engineering
 
-# Combine bus stop data into single dataframe
-bus_stops <- bind_rows(
-  bus_stop_fa2014 |> mutate(year = 2014),
-  bus_stop_fa2015 |> mutate(year = 2015),
-  bus_stop_fa2016 |> mutate(year = 2016),
-  bus_stop_fa2017 |> mutate(year = 2017),
-  bus_stop_fa2018 |> mutate(year = 2018),
-  bus_stop_fa2019 |> mutate(year = 2019),
-  bus_stop_fa2021 |> mutate(year = 2021),
-  bus_stop_fa2022 |> mutate(year = 2022),
-  bus_stop_fa2023 |> mutate(year = 2023)
+## Load Census Data
+```{r load_census_data}
+# ACS Demographics (2017-2021 5-Year)
+acs_vars <- c(
+  "B01001_001", # Total Population
+  "B17001_002", # Poverty: Count below poverty level
+  "B08201_002", # No Vehicle Available (Household)
+  "B08201_001"  # Total Households
+)
+
+acs_data <- get_acs(
+  geography = "tract", state = "PA", county = "Philadelphia",
+  variables = acs_vars, year = 2021, output = "wide", geometry = FALSE
+) |>
+  dplyr::select(GEOID, 
+         pop_total = B01001_001E,
+         poverty_count = B17001_002E,
+         no_vehicle_count = B08201_002E,
+         hh_total = B08201_001E) |>
+  mutate(
+    pct_poverty = poverty_count / pop_total,
+    pct_no_vehicle = no_vehicle_count / hh_total,
+    across(c(pct_poverty, pct_no_vehicle), ~replace_na(., 0)) # Null handling
+  )
+```
+
+## Spatial Engineering
+```{r spatial_engineer}
+# Count Shelters per Tract
+shelters_agg <- tracts_sf |>
+  st_join(bus_shelters) |>
+  group_by(GEOID) |>
+  summarise(n_shelters = n() - sum(is.na(objectid))) |> 
+  st_drop_geometry()
+
+# Count Bus Stops per Tract
+stops_agg <- tracts_sf |>
+  st_join(stops_bus) |>
+  group_by(GEOID) |>
+  summarise(n_stops = n()) |>
+  st_drop_geometry()
+
+# Distance to Nearest Rail Station
+rail_union <- st_union(stops_rail)
+tract_centroids <- st_centroid(tracts_sf)
+dist_matrix <- st_distance(tract_centroids, rail_union)
+
+dist_df <- tibble(
+  GEOID = tracts_sf$GEOID,
+  dist_to_rail_km = as.numeric(dist_matrix) / 1000
 )
 ```
 
-# Preprocess Data
-```{r preprocess_data}
-# Filter to Philadelphia County and clean fields for tract-level data
-bus_tract_phila <- bus_tract |>
-  filter(County_Name == "Philadelphia County") |>
+## Join Dataframes Together
+```{r}
+tract_features_static <- tracts_sf |>
+  mutate(area_km2 = as.numeric(st_area(geometry)) / 1e6) |>
+  st_drop_geometry() |>
+  left_join(acs_data, by = "GEOID") |>
+  left_join(shelters_agg, by = "GEOID") |>
+  left_join(stops_agg, by = "GEOID") |>
+  left_join(dist_df, by = "GEOID") |>
   mutate(
-    year = as.integer(stringr::str_extract(Season, "\\d{4}")),
-    total_ridership = On_ + Off_
-  )
-
-# Filter bus_tract_phila to 2017-2023, since prior years don't have weekend data
-bus_tract_clean <- bus_tract_phila |>
-  filter(year >= 2017)
-
-# Clean bus stop data
-bus_stops_clean <- bus_stops |>
-  # Extract year
-  mutate(year = as.integer(str_extract(Sign_Up, "\\d{4}"))) |>
-  
-  # Remove years with missing ridership data
-  filter(year >= 2017) |>
-  
-  # Combine ridership fields (2023 has diff cols than rest)
-  mutate(
-    weekday_on  = coalesce(WKDY_ONS, Weekday_On),
-    weekday_off = coalesce(WKDY_OFFS, Weekday_Of),
-    
-    saturday_on  = coalesce(SAT_ONS, Saturday_O),
-    saturday_off = coalesce(SAT_OFFS, Saturday_1),
-    
-    sunday_on  = coalesce(SUN_ONS, Sunday_Ons),
-    sunday_off = coalesce(SUN_OFFS, Sunday_Off)
+    n_stops = replace_na(n_stops, 0),
+    n_shelters = replace_na(n_shelters, 0),
+    stop_density = n_stops / area_km2,
+    pop_density = pop_total / area_km2,
+    # Equity Metric: Shelter Coverage
+    pct_sheltered = ifelse(n_stops > 0, n_shelters / n_stops, 0),
+    pct_sheltered = pmin(pct_sheltered, 1) # Cap at 100%
   )
 ```
 
+
 # Exploratory Data Analysis
 
-## Monthly Average Daily Ridership by Transit Mode
+## Time Series Trends
+
+### Average Daily Ridership by Mode
+
 ```{r mode_line_chart}
 # Engineer a date feature for plotting
 transit_mode_monthly <- transit_mode |>
@@ -171,7 +251,7 @@ ggplot(transit_mode_monthly,
            color = Mode)) +
   geom_line(linewidth = 1) +
   labs(
-    title = "Monthly Average Daily Ridership by Transit Mode",
+    title = "Average Daily Ridership by Transit Mode",
     subtitle = "SEPTA in Philadelphia from 2019 - 2025",
     x = "Date",
     y = "Average Daily Ridership",
@@ -180,11 +260,12 @@ ggplot(transit_mode_monthly,
   theme_minimal()
 ```
 
-## Total SEPTA Bus Ridership by Day of Week
+### Ridership by Day of the Week
+
 ```{r ridership_dow}
 # Aggregate to total ridership by year and day-of-week
-bus_tract_year_dow <- bus_tract_phila |>
-  group_by(year, Day_of_Week) |>
+bus_tract_year_dow <- bus_tract_clean |>
+  group_by(year, day_of_week) |>
   summarise(
     total_ridership = sum(total_ridership, na.rm = TRUE),
     .groups = "drop"
@@ -192,7 +273,7 @@ bus_tract_year_dow <- bus_tract_phila |>
 
 # Minimal line plot of total ridership over time by day-of-week
 ggplot(bus_tract_year_dow,
-       aes(x = year, y = total_ridership, color = Day_of_Week)) +
+       aes(x = year, y = total_ridership, color = day_of_week)) +
   geom_line(linewidth = 0.9) +
   geom_point(size = 1.8) +
   labs(
@@ -206,77 +287,36 @@ ggplot(bus_tract_year_dow,
 
 ```
 
-## Pre vs. Post COVID Ridership Comparison
-```{r pre_post_covid}
-# Aggregate to one row per tract-year
-tract_19_21 <- bus_tract_phila |>
-  filter(
-    year %in% c(2019, 2021)
-  ) |>
-  group_by(Census_Tract_ID, year) |>
-  summarise(
-    total_ridership = sum(total_ridership, na.rm = TRUE),
-    .groups = "drop"
-  ) |>
-  # Pivot to wide format for plotting
-  pivot_wider(
-    names_from = year,
-    values_from = total_ridership,
-    names_prefix = "y"
-  ) |>
-  # Drop tracts with missing data
-  tidyr::drop_na(y2019, y2021)
+## Spatial Distributions
 
-# Plot 2019 vs 2021 ridership scatterplot
-ggplot(tract_19_21,
-       aes(x = y2019, y = y2021)) +
-  geom_point(alpha = 0.6) +
-  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
-  labs(
-    title = "Tract-Level Weekday Ridership: 2019 vs 2021",
-    subtitle = "Each point represents a census tract in Philadelphia County",
-    x = "2019 Ridership",
-    y = "2021 Ridership"
-  ) +
-  theme_minimal()
-```
+### Ridership in 2023
 
-## Tract-Level Total Ridership (Fall 2023)
-```{r tract_rider_map_2023}
-# Tract-level total ridership, Fall 2023
-tract_2023 <- bus_tract_phila |>
-  filter(year == 2023) |>
-  group_by(Census_Tract_ID) |>
-  summarise(
-    total_ridership = sum(total_ridership, na.rm = TRUE),
-    .groups = "drop"
-  ) |>
-  filter(!is.na(total_ridership), total_ridership > 0) |>
-  # Quintiles to view meaningful patterns in plot
+```{r}
+# Prepare 2023 Tract Data from the CLEAN objects
+ridership_2023 <- bus_tract_clean |>
+  filter(day_of_week == "Weekday", year == 2023) |>
+  group_by(census_tract_id) |>
+  summarise(total_vol = sum(total_ridership, na.rm=TRUE))
+
+# Join to Geometry
+map_2023 <- tracts_sf |>
+  left_join(ridership_2023, by = c("GEOID" = "census_tract_id")) |>
   mutate(
-    ridership_q = cut_number(
-      total_ridership,
-      n = 5,
-      labels = c("Lowest 20%", "20–40%", "40–60%", "60–80%", "Top 20%")
-    )
+    # Create Quintiles
+    vol_quintile = ntile(total_vol, 5),
+    vol_quintile = factor(vol_quintile, labels = c("Lowest", "Low", "Med", "High", "Highest"))
   )
 
-# Join to tract geometries
-tract_map_2023 <- tracts_sf |>
-  mutate(GEOID = as.character(GEOID)) |>
-  left_join(tract_2023, by = c("GEOID" = "Census_Tract_ID"))
-
-# Plot quintiles of total ridership
-ggplot(tract_map_2023) +
-  geom_sf(aes(fill = ridership_q), color = NA) +
+ggplot(map_2023) +
+  geom_sf(aes(fill = vol_quintile), color = NA) +
   scale_fill_brewer(
     palette = "YlGnBu",
     na.value = "grey90",
-    name = "Quintile of\nWeekday Ridership"
+    name = "Quintiles of Ridership"
   ) +
   labs(
     title = "Bus Ridership by Census Tract (Fall 2023)",
-    subtitle = "Tracts grouped into quintiles by total weekday boardings + deepartures",
+    subtitle = "Total Ridership = Boardings On_ + Off_",
   ) +
   theme_minimal() +
   theme(
@@ -285,377 +325,340 @@ ggplot(tract_map_2023) +
   )
 ```
 
-## Percent Change in Tract-Level Ridership (2021-2023)
-```{r tract_perc_chg_19_23}
-# Tract-level 2019 & 2023 totals and percent change
-tract_change_21_23 <- bus_tract_phila |>
+## Equity Analysis
+```{r poverty_vs_shelters}
+# Join features to geometry for plotting
+plot_data <- tracts_sf |>
+  left_join(tract_features_static, by = "GEOID")
+
+# Map A: Poverty
+p1 <- ggplot(plot_data) +
+  geom_sf(aes(fill = pct_poverty), color = NA) +
+  scale_fill_viridis_c(option = "magma", labels = percent, name = "Poverty %") +
+  labs(title = "Census Tract Poverty Rate (2021)", subtitle = "Where is the most financial distress?") +
+  theme_void()
+
+# Map B: Shelter Coverage
+p2 <- ggplot(plot_data) +
+  geom_sf(aes(fill = pct_sheltered), color = NA) +
+  scale_fill_viridis_c(option = "viridis", labels = percent, name = "Sheltered %") +
+  labs(title = "Percentage of Bus Stops with Shelters", subtitle = "Where are the highest % of shelters?") +
+  theme_void()
+
+# Display side-by-side
+p1 + p2
+```
+
+```{r}
+# Compute correlation between poverty and shelters
+cor_val <- cor(tract_features_static$pct_poverty, tract_features_static$pct_sheltered, use="complete.obs")
+
+# Plot scatterplot - No correlation
+ggplot(tract_features_static, aes(x = pct_poverty, y = pct_sheltered)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", color = "red") +
+  scale_x_continuous(labels = percent) +
+  scale_y_continuous(labels = percent) +
+  labs(title = paste0("Correlation(Poverty, Shelters): ", round(cor_val, 2)),
+       subtitle = "Do poorer tracts have a smaller % of bus shelters?",
+       x = "Poverty Rate", y = "Shelter Coverage")
+```
+
+##  Tract-Level Ridership Comparison (COVID Shock + Recovery)
+
+```{r tract_perc_chg_19_21}
+# 1. Prepare Data: Calculate Change for Both Periods
+ridership_periods <- bus_tract_clean |>
   filter(
-    County_Name == "Philadelphia County",
-    Season %in% c("Fall 2021", "Fall 2023"),
-    #Day_of_Week == "Weekday"
+    year %in% c(2019, 2021, 2023),
+    day_of_week == "Weekday"
   ) |>
-  group_by(Census_Tract_ID, year) |>
-  summarise(
-    total_ridership = sum(total_ridership, na.rm = TRUE),
-    .groups = "drop"
+  group_by(census_tract_id, year) |>
+  summarise(total_ridership = sum(total_ridership, na.rm = TRUE), .groups = "drop") |>
+  pivot_wider(
+    names_from = year, 
+    values_from = total_ridership, 
+    names_prefix = "vol_"
   ) |>
-  tidyr::pivot_wider(
-    names_from = year,
-    values_from = total_ridership,
-    names_prefix = "y"
-  ) |>
-  # Needs data from both 2021 and 2023
-  filter(!is.na(y2021), !is.na(y2023), y2021 > 0) |>
   mutate(
-    pct_change_21_23 = 100 * (y2023 - y2021) / y2021
-  )
+    # Shock: 2019 -> 2021
+    change_shock = (vol_2021 - vol_2019) / vol_2019,
+    
+    # Recovery: 2021 -> 2023
+    change_recovery = (vol_2023 - vol_2021) / vol_2021,
+    
+    # Cap outliers for visualization (e.g., -100% to +100%)
+    shock_capped = pmax(pmin(change_shock, 0.5), -1),
+    recovery_capped = pmax(pmin(change_recovery, 1.0), -0.5)
+  ) |>
+  drop_na(change_shock, change_recovery)
 
-# Bracket into percentage bins for plotting
-breaks <- c(-Inf, -50, -25, -10, 10, 25, 50, Inf)
-labels <- c("≤ -50%", "-50% to -25%", "-25% to -10%",
-            "-10% to +10%", "+10% to +25%", "+25% to +50%", "≥ +50%")
+# 2. Join to Geometry
+map_periods <- tracts_sf |>
+  left_join(ridership_periods, by = c("GEOID" = "census_tract_id"))
 
-tract_change_21_23 <- tract_change_21_23 |>
-  mutate(
-    pct_change_cat = cut(
-      pct_change_21_23,
-      breaks = breaks,
-      labels = labels,
-      include.lowest = TRUE,
-      ordered_result = TRUE
-    )
-  )
+# 3. Create Plots
 
-# Join to tract geometries
-tract_map_change_21_23 <- tracts_sf |>
-  mutate(GEOID = as.character(GEOID)) |>
-  left_join(tract_change_21_23, by = c("GEOID" = "Census_Tract_ID"))
-
-# Plot map
-ggplot(tract_map_change_21_23) +
-  geom_sf(aes(fill = pct_change_cat), color = NA) +
-  scale_fill_brewer(
-    palette = "RdYlGn",
-    na.value = "grey90",
-    name = "% change\n2021–2023"
+# Plot A: The COVID Shock (2019-2021)
+p_shock <- ggplot(map_periods) +
+  geom_sf(aes(fill = shock_capped), color = NA) +
+  scale_fill_distiller(
+    palette = "RdBu", direction = 1, 
+    labels = scales::percent, 
+    limits = c(-1, 0.5), # Fixed limits for comparison
+    name = "Change"
   ) +
-  labs(
-    title = "Percent Change in Bus Ridership by Census Tract",
-    subtitle = "From Fall 2021 - 2023; red = loss, green = gain",
-    caption = "Measures Post-COVID Recovery in SEPTA Usage"
+  labs(title = "The Shock (2019 → 2021)", 
+       subtitle = "Ridership losses (pre-pandemic)") +
+  theme_void() +
+  theme(legend.position = "bottom")
+
+# Plot B: The Recovery (2021-2023)
+p_recovery <- ggplot(map_periods) +
+  geom_sf(aes(fill = recovery_capped), color = NA) +
+  scale_fill_distiller(
+    palette = "RdBu", direction = 1, 
+    labels = scales::percent,
+    limits = c(-0.5, 1.0), # Different limits likely needed for recovery
+    name = "Change"
   ) +
-  theme_minimal() +
-  theme(
-  axis.text = element_blank(),
-  axis.ticks = element_blank()
+  labs(title = "The Recovery (2021 → 2023)", 
+       subtitle = "Ridership gains (post-pandemic)") +
+  theme_void() +
+  theme(legend.position = "bottom")
+
+# 4. Combine 
+p_shock + p_recovery + 
+  plot_annotation(
+    title = "SEPTA Demand Resilience: Shock vs. Recovery",
+    subtitle = "Comparing the spatial patterns of gains/losses due to the COVID pandemic",
+    theme = theme(plot.title = element_text(size = 16, face = "bold"))
   )
 ```
 
 ## Fishnet Grid: Ridership + Bus Stops
 ```{r fishnet}
-# Aggregate total ridership across all day types
-bus_stops_2023 <- bus_stops_clean |>
-  filter(Sign_Up == "Fall 2023", Mode == "Bus") |>
-  mutate(
-    total_all_days =
-      weekday_on  + weekday_off +
-      saturday_on + saturday_off +
-      sunday_on   + sunday_off
-  )
+# 4. Fishnet Analysis (Stop Density & Weekday Ridership)
 
-stops_sf <- st_as_sf(bus_stops_2023,
-                     coords = c("Lon", "Lat"),
-                     crs = 4326) |>
+# 1. Prepare 2023 Data (Weekday Only)
+stops_2023_sf <- bus_stops_clean |>
+  filter(year == 2023) |>
+  st_as_sf(coords = c("lon", "lat"), crs = 4326) |>
   st_transform(26918)
 
-# Philly boundary from tracts
-philly_boundary <- tracts_sf |>
-  st_transform(26918) |>
-  st_union()
+# 2. Create Fishnet Grid (500m)
+# Use the union of tracts to define the city boundary
+philly_boundary <- st_union(tracts_sf)
 
-# Construct fishnet grid
 fishnet <- st_make_grid(
   philly_boundary,
-  cellsize = 500, # 500 m x 500 m
+  cellsize = 500, # 500m x 500m
   square = TRUE
 ) |>
-  st_sf() |>
+  st_as_sf() |>
   mutate(grid_id = row_number())
 
-# Keep only cells within Philadelphia census boundaries
+# Clip grid to city shape (optional, makes map cleaner)
 fishnet <- fishnet[philly_boundary, ]
 
-# Aggregate bus stops to grid cells
-stops_joined <- st_join(stops_sf, fishnet, join = st_within)
+# 3. Aggregate Stops to Grid
+# Spatial join: Assign grid_id to each stop
+stops_joined <- st_join(stops_2023_sf, fishnet, join = st_within)
 
+# Summarize data by grid cell
 fishnet_agg <- stops_joined |>
-  st_drop_geometry() |>
+  st_drop_geometry() |> 
   group_by(grid_id) |>
   summarise(
-    countStops      = n(),
-    totalAllDayRid  = sum(total_all_days, na.rm = TRUE),
+    countStops = n(),
+    totalRid = sum(total_weekday, na.rm = TRUE),
     .groups = "drop"
-  ) |>
-  right_join(fishnet, by = "grid_id") |>
-  st_as_sf()
+  )
 
-# Fishnet EDA plots (all day-types)
+# Join back to grid geometry for plotting
+fishnet_plot_data <- fishnet |>
+  left_join(fishnet_agg, by = "grid_id") |>
+  # Replace NAs with 0 so empty cells plot as "0" instead of gray/missing
+  mutate(
+    countStops = replace_na(countStops, 0),
+    totalRid   = replace_na(totalRid, 0)
+  )
+
+# 4. Plotting
+
+# Plot A: Ridership Intensity
 p_rid <- ggplot() +
-  geom_sf(data = fishnet_agg, aes(fill = totalAllDayRid), color = NA) +
-  geom_sf(data = philly_boundary, fill = NA, color = "white", linewidth = 0.4) +
+  geom_sf(data = fishnet_plot_data, aes(fill = totalRid), color = NA) +
+  geom_sf(data = philly_boundary, fill = NA, color = "white", size = 0.5) +
   scale_fill_viridis_c(
-    name = "Ridership (all days)",
-    trans = "sqrt"
+    name = "Weekday\nRidership",
+    trans = "sqrt",
+    option = "plasma"
   ) +
   labs(
-    title = "Bus Ridership by Fishnet Grid Cell",
-    subtitle = "500m grid, Fall 2023"
+    title = "Ridership Density",
+    subtitle = "500m Grid, Fall 2023"
   ) +
-  theme_minimal() +
-  theme(
-    axis.text  = element_blank(),
-    axis.ticks = element_blank(),
-    axis.title = element_blank()
-  )
+  theme_void()
 
+# Plot B: Stop Density
 p_stops <- ggplot() +
-  geom_sf(data = fishnet_agg, aes(fill = countStops), color = NA) +
-  geom_sf(data = philly_boundary, fill = NA, color = "white", linewidth = 0.4) +
+  geom_sf(data = fishnet_plot_data, aes(fill = countStops), color = NA) +
+  geom_sf(data = philly_boundary, fill = NA, color = "white", size = 0.5) +
   scale_fill_viridis_c(
-    name = "Bus stops",
-    trans = "sqrt"
+    name = "Stop Count",
+    trans = "sqrt",
+    option = "viridis"
   ) +
   labs(
-    title = "Bus Stop Counts by Fishnet Grid Cell",
-    subtitle = "500m x 500m grid, Fall 2023"
+    title = "Stop Density",
+    subtitle = "500m Grid, Fall 2023"
   ) +
-  theme_minimal() +
-  theme(
-    axis.text  = element_blank(),
-    axis.ticks = element_blank(),
-    axis.title = element_blank()
+  theme_void()
+
+# Display side-by-side
+p_rid + p_stops + 
+  plot_annotation(
+    title = "Comparison of Daily Weekday Ridership and Bus Stop Densities",
+    theme = theme(plot.title = element_text(size = 16, face = "bold"))
   )
-
-p_rid + p_stops
-
 ```
 
 # Model Building Workflow
 
-## Prepare Tract-Level Data
-```{r data_prep}
-bus_tract_year <- bus_tract_clean |>
-  filter(Day_of_Week == "Weekday") |>
-  group_by(Census_Tract_ID, Census_Tract_Name, year) |>
-  summarise(
-    total_ridership = sum(total_ridership, na.rm = TRUE),
-    .groups = "drop"
-  ) |>
-  arrange(Census_Tract_ID, year) |>
-  group_by(Census_Tract_ID) |>
+## Setup
+
+```{r}
+# 1. Prepare Longitudinal Panel (2017-2023)
+# Aggregate ridership to one row per Tract-Year (Weekdays only)
+bus_panel <- bus_tract_clean |>
+  filter(day_of_week == "Weekday") |>
+  group_by(census_tract_id, census_tract_name, year) |>
+  summarise(total_ridership = sum(total_ridership, na.rm=TRUE), .groups="drop")
+
+# 2. Join with Static Features (Demographics, Shelters, Rail Dist)
+model_data <- bus_panel |>
+  left_join(tract_features_static, by = c("census_tract_id" = "GEOID")) |>
+  st_drop_geometry() |> # Drop geometry
   mutate(
-    trend = year - min(year, na.rm = TRUE), # Fill in for year FE
-    post_covid = if_else(year >= 2021, 1L, 0L)
+    # Time Trends
+    trend = year - min(year),
+    post_covid = if_else(year >= 2021, 1, 0),
+    
+    # Log Transformations (handling zeros for density vars)
+    log_pop_density = log(pop_density + 1),
+    log_stop_density = log(stop_density + 1)
   ) |>
-  ungroup() |>
-  filter(total_ridership > 0)
+  filter(!is.na(total_ridership))
 ```
 
-## Temporal Train/Test Split
-```{r temporal_train_test}
+```{r}
+# 1. Define Error Metric
+mae <- function(obs, pred) mean(abs(obs - pred))
+
+# 2. Train/Test Split
+
 # TRAIN = pre-COVID + two recovery year (2017-19, 2021-2022)
-tract_train <- bus_tract_year |>
-  filter(year != 2023)
+tract_train <- model_data |>
+  filter(year != 2023) |>
+  mutate(census_tract_id = as.factor(census_tract_id))
 
 # TEST = heldout, evaluation year (2023)
-tract_test <- bus_tract_year |>
-  filter(year == 2023)
+tract_test <- model_data |>
+  filter(year == 2023) |>
+  mutate(census_tract_id = as.factor(census_tract_id))
 ```
 
-## Mean Absolute Error (MAE) Function
-```{r calculate_mae}
-mae <- function(obs, pred) mean(abs(obs - pred))
-```
+## Baseline Model 1: Trend + COVID + Tract FE
 
-## Baseline Model 1: Trend + Post_Covid + Tract FE
-
-### Poisson Model
-```{r}
-# Train Poisson model
+```{r model_1}
+# A. Fit Poisson
 m1_pois <- glm(
-  total_ridership ~ trend + post_covid + factor(Census_Tract_ID),
+  total_ridership ~ trend + post_covid + census_tract_id,
   data = tract_train,
   family = "poisson"
 )
 
-# Predict on test set (2023)
-tract_test <- tract_test |>
-  mutate(pred_m1_pois = predict(m1_pois, newdata = tract_test, type = "response"))
+# B. Check Dispersion
+dispersion <- sum(residuals(m1_pois, type = "pearson")^2) / m1_pois$df.residual
 
-# Calculate MAE
-mae_m1_pois <- mae(tract_test$total_ridership, tract_test$pred_m1_pois)
-mae_m1_pois
-```
+cat("Dispersion Parameter:", round(dispersion, 2), "\n")
+if(dispersion > 1.5) cat("⚠️ Overdispersion detected! Switching to Negative Binomial.\n")
 
-### Check For Overispersion
-
-```{r}
-# Calculate dispersion parameter
-dispersion <- sum(residuals(m1_pois, type = "pearson")^2) / 
-              m1_pois$df.residual
-
-cat("Dispersion parameter:", round(dispersion, 2), "\n")
-cat("Rule of thumb: >1.5 suggests overdispersion\n")
-
-if (dispersion > 1.5) {
-  cat("⚠ Overdispersion detected! Consider Negative Binomial model.\n")
-} else {
-  cat("✓ Dispersion looks okay for Poisson model.\n")
-}
-```
-
-### Transition to Negative Binomial Model
-```{r}
-# Train Negative Binomial model
-m1 <- glm.nb(
-  total_ridership ~ trend + post_covid + factor(Census_Tract_ID),
+# C. Fit Negative Binomial (The Real Baseline)
+m1_nb <- glm.nb(
+  total_ridership ~ trend + post_covid + census_tract_id,
   data = tract_train
 )
 
-# Predict on test set (2023)
-tract_test <- tract_test |>
-  mutate(pred_m1 = predict(m1, newdata = tract_test, type = "response"))
+# D. Evaluate
+pred_m1 <- predict(m1_nb, newdata = tract_test, type = "response")
+mae_m1  <- mae(tract_test$total_ridership, pred_m1)
 
-# Calculate MAE
-mae_m1 <- mae(tract_test$total_ridership, tract_test$pred_m1)
-mae_m1
+cat("Baseline (M1) MAE:", round(mae_m1, 2))
 ```
 
+## Model 2: Trend + COVID + Infrastructure + Equity
 
-## Model 2: + Bus Stop Density, Distance to Nearest Rail/Trolley Stop
-
-### Feature Engineering: Bus Stop Densities
-```{r}
-# Census Tract Area (in squared km)
-tracts_sf_utm <- tracts_sf |>
-  st_transform(26918) |>
-  mutate(
-    Census_Tract_ID = as.character(GEOID),
-    area_km2 = as.numeric(st_area(geometry)) / 1e6
-  )
-
-# Transform bus_stops_clean into a sf
-stops_sf_all <- bus_stops_clean |>
-  st_as_sf(coords = c("Lon", "Lat"), crs = 4326) |>
-  st_transform(26918)
-
-# Spatial join: tracts to stops
-stops_with_tract <- st_join(
-  stops_sf_all,
-  tracts_sf_utm |> dplyr::select(Census_Tract_ID),
-  join = st_within
-) |>
-  st_drop_geometry()# Transform back to tibble
-```
-
-```{r}
-# Aggregate number of bus stops for each tract/year combo
-stops_tract_year <- stops_with_tract |>
-  filter(!is.na(Census_Tract_ID)) |>
-  group_by(Census_Tract_ID, year) |>
-  summarise(
-    n_stops = n(),
-    .groups = "drop"
-  )
-```
-
-```{r}
-# Engineer bus stop + total rider density for each tract
-stops_tract_year <- stops_tract_year |>
-  # Join in tract area
-  left_join(
-    tracts_sf_utm |> st_drop_geometry() |>
-      dplyr::select(Census_Tract_ID, area_km2),
-    by = "Census_Tract_ID"
-  ) |>
-  mutate(
-    stop_density = n_stops / area_km2
-  )
-
-# Join to tract-weekday panel
-bus_tract_year <- bus_tract_year |>
-  left_join(
-    stops_tract_year,
-    by = c("Census_Tract_ID", "year")
-  )
-```
-
-### Feature Engineering: Distance to Nearest Rail/Trolley Stop
-```{r}
-# Extract only rail + trolley stations from all_stops
-rail_trolley_stations <- all_stops |>
-  filter(
-    LineAbbr %in% c("BSL", "MFL", "HRS") | # Rail Line
-      str_starts(LineAbbr, "T") # Trolley
-  ) |>
-  st_transform(26918)
-
-# Drop duplicate stations
-rail_trolley_stations <- rail_trolley_stations |>
-  group_by(StopId) |>
-  summarise(geometry = st_union(geometry), .groups = "drop")
-```
-
-```{r}
-# Tract centroids
-tract_centroids <- tracts_sf_utm |>
-  st_centroid()
-
-# Distance matrix from each tract to each station in meters
-dist_mat <- st_distance(tract_centroids, rail_trolley_stations)
-
-# Nearest station distance per tract + convert to km
-dist_to_rail_km <- apply(dist_mat, 1, min) / 1000
-
-# Create df with nearest distance metrics
-dist_rail_df <- tracts_sf_utm |>
-  st_drop_geometry() |>
-  mutate(dist_to_rail_km = as.numeric(dist_to_rail_km)) |>
-  dplyr::select(Census_Tract_ID, dist_to_rail_km)
-```
-
-```{r}
-# Join to modeling df
-bus_tract_year <- bus_tract_year |>
-  left_join(dist_rail_df, by = "Census_Tract_ID")
-
-# Handle null values
-bus_tract_year <- bus_tract_year |>
-  mutate(
-    stop_density = tidyr::replace_na(stop_density, 0),
-  )
-
-# Train data
-tract_train_M2 <- bus_tract_year |>
-  filter(year %in% c(2017, 2018, 2019, 2021, 2022))
-
-# Test data
-tract_test_M2 <- bus_tract_year |>
-  filter(year == 2023)
-```
-
-### Modeling
-```{r}
-m2 <- glm.nb(
-  total_ridership ~ trend + post_covid + factor(Census_Tract_ID) + stop_density + dist_to_rail_km,
-  data = tract_train_M2
+```{r model_2}
+# Fit Model: Demographics + Infrastructure (No Tract FE)
+m2_nb <- glm.nb(
+  total_ridership ~ 
+    trend + post_covid + 
+    # Infrastructure Features
+    stop_density + dist_to_rail_km + pct_sheltered +
+    # Demographic Features
+    pct_poverty + pct_no_vehicle + pop_density,
+  data = tract_train
 )
 
-tract_test_M2 <- tract_test_M2 |>
-  mutate(pred_m2 = predict(m2, newdata = tract_test_M2, type = "response"))
+# Evaluate
+pred_m2 <- predict(m2_nb, newdata = tract_test, type = "response")
+mae_m2  <- mae(tract_test$total_ridership, pred_m2)
 
-mae_m2 <- mae(tract_test_M2$total_ridership, tract_test_M2$pred_m2)
-mae_m2
+# Print Policy Findings
+cat("M2 Equity + Infrastructure (No FE) MAE:", round(mae_m2, 2), "\n")
+```
+
+## Model 3: Trend + COVID + FE + COVID Interactions with Infrastructure/Equity
+```{r model_3}
+m3_nb <- glm.nb(
+  total_ridership ~ 
+    # 1. Global Trends
+    trend + post_covid + 
+    
+    # 2. Differential Recovery (Interactions)
+    # "Did high-poverty or sheltered areas recover differently?"
+    post_covid:pct_poverty +
+    post_covid:pct_sheltered +
+    post_covid:dist_to_rail_km +
+    
+    # 3. Local Baselines (Fixed Effects)
+    census_tract_id,
+  data = tract_train
+)
+
+# Evaluate
+pred_m3 <- predict(m3_nb, newdata = tract_test, type = "response")
+mae_m3  <- mae(tract_test$total_ridership, pred_m3)
+
+cat("M3 FE + Interactions MAE:", round(mae_m3, 2))
+```
+
+## Model Performance Comparison
+```{r}
+results <- tibble(
+  Model = c("M1: Baseline (FE)", "M2: Equity + Infrastructure", "M3: Final (FE + Interactions)"),
+  MAE = c(mae_m1, mae_m2, mae_m3),
+  Interpretation = c(
+    "Controls for local history only.",
+    "Tests policy variables (Shelters/Poverty).",
+    "Combines Local history + Equity-driven recovery."
+  )
+)
+
+kable(results, digits = 2) |>
+  kable_styling(bootstrap_options = "striped", full_width = F)
 ```
 
 
