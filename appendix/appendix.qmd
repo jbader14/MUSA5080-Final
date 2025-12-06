@@ -55,6 +55,10 @@ library(here)
 # Extra
 library(tidytext)
 library(MASS)
+library(jsonlite)
+library(dplyr)
+library(purrr)
+
 
 # Get rid of scientific notation. We gotta look good!
 options(scipen = 999)
@@ -669,6 +673,145 @@ mae_m3  <- mae(tract_test$total_ridership, pred_m3)
 
 cat("M3 FE + Interactions MAE:", round(mae_m3, 2))
 ```
+
+## Model 5: KNN 3 Bike stations 
+```{r}
+library(jsonlite)
+library(dplyr)
+library(purrr)
+library(sf)
+
+# 1. Pull Indego data from the API
+url <- "https://kiosks.bicycletransit.workers.dev/phl"
+indego_raw <- fromJSON(url, flatten = TRUE)
+
+# This should be a data frame of all stations
+indego_features <- indego_raw$features
+# View the column names if you're curious:
+# names(indego_features)
+
+# 2. Extract lon/lat from geometry.coordinates (a list-column)
+indego_df <- indego_features %>%
+  mutate(
+    lon = map_dbl(geometry.coordinates, ~ .x[1]),
+    lat = map_dbl(geometry.coordinates, ~ .x[2])
+  ) %>%
+  transmute(
+    kiosk_id    = properties.kioskId,
+    name        = properties.name,
+    total_docks = properties.totalDocks,
+    lon, lat
+  )
+
+# 3. Convert to sf
+indego_sf <- st_as_sf(indego_df, coords = c("lon", "lat"), crs = 4326)
+
+
+```
+
+```{r}
+library(tigris)
+options(tigris_use_cache = TRUE)
+
+philly_tracts <- tracts("PA", "Philadelphia", year = 2020) %>%
+  st_transform(4326)
+
+indego_with_tracts <- st_join(indego_sf, philly_tracts["GEOID"])
+
+```
+```{r}
+library(sf)
+library(nngeo)
+
+# Make sure both datasets are in projected CRS (meters)
+tracts_sf <- st_transform(tracts_sf, 26918)
+indego_sf <- st_transform(indego_sf, 26918)
+
+# Tract centroids
+tracts_centroids <- st_centroid(tracts_sf)
+
+# KNN with k = 3
+knn_res <- st_nn(
+  tracts_centroids,
+  indego_sf,
+  k = 3,
+  returnDist = TRUE
+)
+
+# Extract the distance matrix (rows = tracts, 3 columns = nearest stations)
+dist_mat <- do.call(rbind, knn_res$dist)
+
+# ⭐ Create your ONE variable:
+tracts_sf$knn3_mean_dist <- rowMeans(dist_mat)
+
+
+```
+
+```{r}
+library(dplyr)
+
+# 1. Build small table with tract ID + KNN value
+tracts_knn <- tracts_sf |>
+  st_drop_geometry() |>
+  dplyr::select(GEOID, knn3_mean_dist)
+
+# 2. Join onto model_data using correct ID mapping
+model_data <- model_data |>
+  dplyr::left_join(
+    tracts_knn,
+    by = c("census_tract_id" = "GEOID")
+  )
+
+# 3. Check results
+head(model_data[, c("census_tract_id", "knn3_mean_dist")])
+
+
+```
+
+```{r}
+# Rebuild train/test AFTER adding knn3_mean_dist to model_data
+tract_train <- model_data |>
+  filter(year != 2023) |>
+  mutate(census_tract_id = as.factor(census_tract_id))
+
+tract_test <- model_data |>
+  filter(year == 2023) |>
+  mutate(census_tract_id = as.factor(census_tract_id))
+
+```
+
+
+```{r}
+library(MASS)
+
+m5_nb <- glm.nb(
+  total_ridership ~ 
+    # 1. Global Trends
+    trend + 
+    post_covid + 
+    
+    # 2. Differential Recovery (Interactions)
+    post_covid:pct_poverty +
+    post_covid:pct_sheltered +
+    post_covid:dist_to_rail_km +
+    
+    # NN3 Interaction
+    post_covid:knn3_mean_dist +
+    
+    # 3. Local Baselines (Fixed Effects)
+    census_tract_id,
+  
+  data = tract_train
+)
+
+# Evaluate
+pred_m5 <- predict(m5_nb, newdata = tract_test, type = "response")
+mae_m5  <- mae(tract_test$total_ridership, pred_m5)
+
+cat("M5 FE + Interactions + KNN3 MAE:", round(mae_m5, 2), "\n")
+
+```
+
 
 ## Model Performance Comparison
 ```{r}
