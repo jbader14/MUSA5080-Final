@@ -87,6 +87,31 @@ bus_shelters <- st_read("data/Bus_Shelters.geojson") |> st_transform(26918)
 all_stops <- st_read("data/all_transit_stops.geojson") |>
   st_transform(26918)
 ```
+::: callout-note
+# Data Sources
+
+- SEPTA Bus Ridership (APC): Average daily ridership by Census Tract/District (Source: OpenDataPhilly).
+
+- SEPTA Bus Stops: Geospatial locations of all bus stops (Source: OpenDataPhilly).
+
+- SEPTA Bus Shelters: Geospatial locations of all bus shelters (Source: OpenDataPhilly).
+
+- SEPTA Transit Data by Mode: Average ridership for each mode (bus, trolley, rail, etc.) (Source: OpenDataPhilly).
+
+- Census ACS (2017-2021): Demographic context (Poverty, Vehicle Ownership, Population Density) via tidycensus.
+
+:::
+
+
+Data Sources
+SEPTA Bus Ridership (APC): Average daily boardings/alightings by Census Tract (Source: SEPTA Open Data).
+
+SEPTA Stop Inventory: Geospatial locations of all bus stops (Source: SEPTA GIS).
+
+Bus Shelters: Point locations of street furniture (Source: OpenDataPhilly).
+
+Census ACS (2017-2021): Demographic context (Poverty, Vehicle Ownership, Population Density) via tidycensus.
+
 # Load Ridership Data
 ```{r load_ridership_data}
 # 1. Tract-Level Ridership (Raw)
