@@ -3,7 +3,11 @@ title: "MUSA 5080 Final Project"
 format: html
 ---
 
-**Project Overview:** 
+**Executive Summary (For the Mayor and SEPTA Board):** 
+
+Traditional predictive models for public transit planning and other industries alike were rendered after the detrimental societal effects of the COVID-19 pandemic. For SEPTA in Philadelphia, there was no data recorded for an entire calendar year in 2020, severely dampening the predictive power of historical transit data. This project aims at the development of a new predictive framework for SEPTA bus ridership, instead of modeling a simple trend analysis around bus demand. We want the differential recovery of neighborhoods to event like the COVID pandemic to be at the forefront of our model, based on socioeconomic patterns in Philadelphia. Census tracts characterized as high-poverty neighborhoods experienced the highest losses to bus ridership from the pandemic shock and the highest gains post-pandemic, This illustrates low-income workers to be the backbone of the SEPTA system. Their ridership provides a "floor" that protected total system collapse in 2021, while they are driving current ridership recovery back to pre-COVID levels. Intuitively, lower income workers tend to work essential jobs that cannot be done remotely, leading to their larger contributions in ridership levels. 
+
+Our final model (Negative Binomial with Fixed Effects and Demographic Interactions) accurately predicts ridership by tract with an average error of around 213 daily riders. We argue that SEPTA's current capital planning does not align with the reality of continuing to protect and provide for underserved communities. Not only because it is the ethical thing to do, but also they are their strongest customer base. Our recommendation is to shift investment strategies to protecting high-ridership, high-poverty areas as "Transit Resilience Zones". These zones require additional route frequency and physical infrastructure (bus shelters) to provide to these higher demand communities. Lastly, these zones also must be protected against route terminations from any future SEPTA budget constraints.
 
 ---
 
