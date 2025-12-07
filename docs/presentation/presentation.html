@@ -6,8 +6,8 @@
 <script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
 <link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
 <link href="../site_libs/quarto-html/light-border.css" rel="stylesheet">
-<link href="../site_libs/quarto-html/quarto-syntax-highlighting-587c61ba64f3a5504c4d52d930310e48.css" rel="stylesheet" id="quarto-text-highlighting-styles"><meta charset="utf-8">
-  <meta name="generator" content="quarto-1.8.26">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dc55a5b9e770e841cd82e46aadbfb9b0.css" rel="stylesheet" id="quarto-text-highlighting-styles"><meta charset="utf-8">
+  <meta name="generator" content="quarto-1.8.24">
 
   <meta name="author" content="Jack Bader, Same Sen, Joey Cahill">
   <meta name="dcterms.date" content="2025-12-08">
@@ -141,16 +141,48 @@ Jack Bader, Same Sen, Joey Cahill
 
   <p class="date">2025-12-08</p>
 </section>
+<section class="slide level2">
+
+<div class="cell">
+<style type="text/css">
+.reveal .slides section {
+  font-size: 0.85em;
+}
+
+.reveal ul {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.reveal li {
+  margin-bottom: 0.3em;
+}
+
+.reveal p {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.reveal h2 {
+  font-size: 1.5em;
+}
+
+.reveal h3 {
+  font-size: 1.2em;
+}
+</style>
+</div>
+</section>
 <section id="predicting-transit-recovery-to-support-equitable-bus-service" class="slide level2">
 <h2>Predicting Transit Recovery to Support Equitable Bus Service</h2>
 <ul>
-<li class="fragment"><strong>Policy question:</strong> How can SEPTA prioritize service &amp; shelter investments post-COVID?</li>
-<li class="fragment"><strong>Outcome:</strong> Weekday bus ridership by census tract (2017–2023)</li>
-<li class="fragment"><strong>Goal:</strong> Provide a <strong>predictive tool</strong> for:
+<li><strong>Policy question:</strong> How can SEPTA prioritize service &amp; shelter investments post-COVID?</li>
+<li><strong>Outcome:</strong> Weekday bus ridership by census tract (2017–2023)</li>
+<li><strong>Goal:</strong> Provide a <strong>predictive tool</strong> for:
 <ul>
-<li class="fragment">Identifying resilient vs.&nbsp;fragile neighborhoods<br>
+<li>Prioritizing neighborhoods for service restoration<br>
 </li>
-<li class="fragment">Targeting equity-focused strategies</li>
+<li>Targeting investments in high-poverty, transit-dependent areas</li>
 </ul></li>
 </ul>
 </section>
@@ -158,84 +190,90 @@ Jack Bader, Same Sen, Joey Cahill
 <h2>The Policy Problem</h2>
 <h3 id="why-does-this-matter">Why does this matter?</h3>
 <ul>
-<li class="fragment">COVID drastically altered <strong>travel behavior</strong></li>
-<li class="fragment">SEPTA faces difficult decisions:
+<li><p>COVID drastically altered <strong>travel behavior</strong></p></li>
+<li><p>SEPTA faces difficult decisions:</p>
 <ul>
-<li class="fragment">Where to restore service?</li>
-<li class="fragment">Where to place shelters?</li>
+<li>Where to restore service?</li>
+<li>Where to place shelters?</li>
 </ul></li>
-<li class="fragment">High-poverty, transit-dependent tracts risk being <strong>left behind</strong></li>
+<li><p>High-poverty, transit-dependent tracts risk being <strong>left behind</strong></p></li>
+<li><p><strong>Decision our model informs:</strong><br>
+</p></li>
+<li><p><strong>Which tracts should SEPTA prioritize for additional service and shelter investments in 2024-2025?</strong></p></li>
 </ul>
-<p><strong>Decision our model informs:</strong><br>
-<strong>Which tracts should SEPTA prioritize for post-COVID recovery investments?</strong></p>
 </section>
 <section id="data-spatial-unit" class="slide level2">
 <h2>Data &amp; Spatial Unit</h2>
 <h3 id="the-secret-ingredient-enhancements">The “Secret Ingredient” + Enhancements</h3>
 <ul>
-<li class="fragment"><strong>Primary dataset:</strong> SEPTA Bus Ridership (APC), by tract, 2017–2023<br>
-</li>
-<li class="fragment"><strong>Spatial unit:</strong> Census tracts (static)</li>
-</ul>
-<p><strong>Additional data sources:</strong></p>
-<ul>
-<li class="fragment">ACS poverty, vehicle access, population density<br>
-</li>
-<li class="fragment">Bus stop and shelter inventory<br>
-</li>
-<li class="fragment">Distance to rail<br>
-</li>
-<li class="fragment">Indego bike share KNN-3 distance</li>
+<li><p><strong>Primary dataset:</strong> SEPTA Bus Ridership (APC), by tract, 2017–2023<br>
+</p></li>
+<li><p><strong>Spatial unit:</strong> Census tracts (static)</p></li>
+<li><p><strong>Additional data sources:</strong></p></li>
+<li><p>ACS poverty, vehicle access, population density<br>
+</p></li>
+<li><p>Bus stop and shelter inventory<br>
+</p></li>
+<li><p>Distance to rail<br>
+</p></li>
+<li><p>Indego bike share KNN-3 distance</p></li>
 </ul>
 </section>
+<section id="average-daily-ridership-by-transit-mode" class="slide level2">
+<h2>Average Daily Ridership by Transit Mode</h2>
+
+<img data-src="figs/mode_line_chart.png" style="width:80.0%" class="r-stretch"></section>
 <section id="exploratory-data-analysis" class="slide level2">
 <h2>Exploratory Data Analysis</h2>
-<h3 id="key-eda-insights">Key EDA Insights</h3>
 <ul>
-<li class="fragment">Severe <strong>shock</strong> in 2019 → 2021<br>
-</li>
-<li class="fragment">Uneven <strong>recovery</strong> in 2021 → 2023<br>
-</li>
-<li class="fragment">Spatial variation in:
+<li><h3 id="key-eda-insights">Key EDA Insights</h3></li>
+<li>Severe <strong>shock</strong> in 2019 → 2021: ~60% drop in ridership</li>
+<li>Uneven <strong>recovery</strong> in 2021 → 2023: some tracts recovered faster</li>
+<li>Spatial variation in:
 <ul>
-<li class="fragment">Ridership levels</li>
-<li class="fragment">Shelter coverage</li>
-<li class="fragment">Poverty, vehicle availability</li>
+<li>Ridership levels</li>
+<li>Shelter coverage</li>
+<li>Poverty, vehicle availability</li>
 </ul></li>
 </ul>
-<p><strong>EDA informed modeling decisions:</strong></p>
+</section>
+<section id="exploratory-data-analysis-cont." class="slide level2">
+<h2>Exploratory Data Analysis (cont.)</h2>
+<div style="text-align: center;">
+<p><img src="figs/ridership_shock_vs_recovery.png" style="width: 50%; height: auto;"></p>
+</div>
 <ul>
-<li class="fragment">Predict <strong>counts</strong> → Poisson / Negative Binomial<br>
-</li>
-<li class="fragment">Include <strong>tract fixed effects</strong><br>
-</li>
-<li class="fragment">Add <strong>equity-focused interactions</strong></li>
+<li><p><strong>EDA informed modeling decisions:</strong></p></li>
+<li><p>Predict <strong>counts</strong> → Poisson / Negative Binomial<br>
+</p></li>
+<li><p>Include <strong>tract fixed effects</strong><br>
+</p></li>
+<li><p>Add <strong>equity-focused interactions</strong></p></li>
 </ul>
 </section>
 <section id="modeling-strategy" class="slide level2">
 <h2>Modeling Strategy</h2>
-<h3 id="approach-within-course-toolbox">Approach within course toolbox</h3>
 <ul>
-<li class="fragment"><strong>Outcome:</strong> total weekday ridership (count)</li>
-<li class="fragment"><strong>Models tested:</strong>
+<li><strong>Outcome:</strong> total weekday ridership (count)</li>
+<li><strong>Models tested:</strong>
 <ul>
-<li class="fragment">Poisson (overdispersed)</li>
-<li class="fragment">Negative Binomial (final)</li>
+<li>Poisson (overdispersed)</li>
+<li>Negative Binomial (final)</li>
 </ul></li>
-<li class="fragment"><strong>Features included:</strong>
+<li><strong>Features included:</strong>
 <ul>
-<li class="fragment">Trend, post_covid<br>
+<li>Trend, post_covid<br>
 </li>
-<li class="fragment">% poverty, % no vehicle, population density<br>
+<li>% poverty, % no vehicle, population density<br>
 </li>
-<li class="fragment">Stop/shelter density</li>
-<li class="fragment">Distance to rail<br>
+<li>Stop/shelter density</li>
+<li>Distance to rail<br>
 </li>
-<li class="fragment">KNN-3 Indego distance<br>
+<li>KNN-3 Indego distance<br>
 </li>
-<li class="fragment">Fixed effects for tracts<br>
+<li>Fixed effects for tracts<br>
 </li>
-<li class="fragment">Equity interactions</li>
+<li>Equity interactions</li>
 </ul></li>
 </ul>
 </section>
@@ -243,15 +281,13 @@ Jack Bader, Same Sen, Joey Cahill
 <h2>Train/Test Design</h2>
 <h3 id="how-we-validated">How we validated</h3>
 <ul>
-<li class="fragment"><strong>Train:</strong> 2017–2019 and 2021–2022<br>
+<li><strong>Train:</strong> 2017–2019 (pre-COVID) and 2021–2022 (recovery)<br>
 </li>
-<li class="fragment"><strong>Test:</strong> 2023 (true held-out year)</li>
+<li><strong>Test:</strong> 2023 (true held-out year)</li>
 </ul>
-<p>Validation metrics: - MAE<br>
-- RMSE<br>
-- MAPE<br>
-- AIC</p>
-</section>
+<p>Validation metrics: - Mean Absolute Error (MAE) - Root Mean Squared Error (RMSE) - Mean Absolute Percentage Error(MAPE) - Akaike Information Criterion (AIC)</p>
+
+<img data-src="figs/model_comparison_table.png" class="quarto-figure quarto-figure-center r-stretch" style="width:95.0%"></section>
 <section id="model-performance-held-out-2023" class="slide level2">
 <h2>Model Performance (Held-out 2023)</h2>
 <h3 id="best-models-model-4-model-5">Best Models: Model 4 &amp; Model 5</h3>
@@ -262,20 +298,102 @@ Jack Bader, Same Sen, Joey Cahill
 <p><strong>Finding:</strong><br>
 Equity-informed models consistently performed best.</p>
 </section>
+<section id="key-findings-what-the-model-tells-us" class="slide level2">
+<h2>Key Findings: What the Model Tells Us</h2>
+<h3 id="fixed-effects-are-essential">1. Fixed Effects Are Essential</h3>
+<ul>
+<li>Without tract FE: MAE = 1,355 (high)</li>
+<li>With tract FE: MAE = 214-238 (good)</li>
+<li>Unobserved tract characteristics significantly impact ridership</li>
+</ul>
+<h3 id="recovery-varies-by-poverty">2. Recovery Varies by Poverty</h3>
+<ul>
+<li>High-poverty tracts show <strong>slightly larger post-COVID drop</strong></li>
+<li>Suggests differential recovery needs by poverty level</li>
+</ul>
+<h3 id="shelter-effects-depend-on-context">3. Shelter Effects Depend on Context</h3>
+<ul>
+<li>Shelters associated with higher ridership overall, but this relationship is much weaker in high-poverty tracts … Why?</li>
+</ul>
+</section>
+<section id="interpreting-model-4-coefficients-main-effects-on-log-scale" class="slide level2">
+<h2>Interpreting Model 4 Coefficients: Main Effects (on log scale)</h2>
+<ul>
+<li><strong><code>trend = 0.21</code></strong>: Each year → ~21% growth (baseline trend)</li>
+<li><strong><code>post_covid = -1.13</code></strong>: Post-COVID period → ~68% drop from trend</li>
+<li><strong><code>pct_poverty = 346.90</code></strong>: Higher poverty → much higher baseline ridership (transit dependence)</li>
+<li><strong><code>pct_no_vehicle = 61.94</code></strong>: No vehicle → higher ridership</li>
+<li><strong><code>pct_sheltered = 85.09</code></strong>: More shelters → higher ridership</li>
+</ul>
+</section>
+<section id="interpreting-model-4-coefficientskey-interactions-on-log-scale" class="slide level2">
+<h2>Interpreting Model 4 Coefficients:Key Interactions (on log scale)</h2>
+<ul>
+<li><p><strong><code>post_covid:pct_poverty = -0.10</code></strong>:<br>
+High-poverty tracts had <strong>slightly larger post-COVID drop</strong></p></li>
+<li><p><strong><code>poverty_x_sheltered = -14,768</code></strong>:<br>
+Shelter effect is <strong>much weaker in high-poverty areas</strong> which suggests shelters work differently in high-poverty contexts</p></li>
+</ul>
+<p><strong>Interpretation:</strong><br>
+The model captures that recovery patterns and infrastructure effects vary by neighborhood context.</p>
+</section>
 <section id="equity-error-patterns" class="slide level2">
 <h2>Equity &amp; Error Patterns</h2>
 <h3 id="understanding-error-distributions">Understanding error distributions</h3>
+<div class="columns">
+<div class="column" style="width:50%;">
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure>
+<p><img data-src="figs/pred_vs_actual.png" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+</div><div class="column" style="width:50%;">
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure>
+<p><img data-src="figs/error_by_poverty_plot.png" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+</div></div>
 <p>Questions explored:</p>
 <ul>
-<li class="fragment">Does the model underpredict high-poverty tracts?<br>
+<li>Does the model underpredict high-poverty tracts?</li>
+<li>Are errors spatially clustered?<br>
 </li>
-<li class="fragment">Are errors spatially clustered?<br>
-</li>
-<li class="fragment">Is the model equitable in practice?</li>
+<li>Is the model equitable in practice?</li>
 </ul>
 </section>
 <section id="spatial-error-diagnostics" class="slide level2">
 <h2>Spatial Error Diagnostics</h2>
+<div class="columns">
+<div class="column" style="width:50%;">
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure>
+<p><img data-src="figs/residual_map.png" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+</div><div class="column" style="width:50%;">
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure>
+<p><img data-src="figs/abs_error_map.png" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+</div></div>
 <p><strong>Insight:</strong><br>
 Some high-need neighborhoods were consistently underpredicted → equity implications.</p>
 </section>
@@ -283,53 +401,57 @@ Some high-need neighborhoods were consistently underpredicted → equity implica
 <h2>Policy Recommendations</h2>
 <h3 id="how-the-city-should-use-the-model">How the City Should Use the Model</h3>
 <ol type="1">
-<li class="fragment"><strong>Prioritize underpredicted, high-poverty tracts</strong> for restoration<br>
+<li><strong>Prioritize underpredicted, high-poverty tracts</strong> for restoration<br>
 </li>
-<li class="fragment">Identify “fragile” tracts with weak recovery<br>
+<li>Identify “fragile” tracts with weak recovery<br>
 </li>
-<li class="fragment">Use model as a <strong>screening tool</strong>, not the final decision-maker<br>
+<li>Use model as a <strong>screening tool</strong>, not the final decision-maker<br>
 </li>
-<li class="fragment">Update annually with new APC + ACS<br>
+<li>Update annually with new APC + ACS<br>
 </li>
-<li class="fragment">Pair predictions with community input</li>
+<li>Pair predictions with community input</li>
 </ol>
 </section>
-<section id="limitations-safeguards" class="slide level2">
-<h2>Limitations &amp; Safeguards</h2>
-<h3 id="limitations">Limitations</h3>
+<section id="limitations" class="slide level2">
+<h2>Limitations</h2>
+<h3 id="limitations-1">Limitations</h3>
 <ul>
-<li class="fragment">APC quality issues<br>
-</li>
-<li class="fragment">ACS lag<br>
-</li>
-<li class="fragment">Spatial autocorrelation persists<br>
-</li>
-<li class="fragment">Behavioral changes (WFH) not captured</li>
+<li><strong>Data issues:</strong> APC quality, ACS lag, spatial autocorrelation (Moran’s I = 0.145)</li>
+<li><strong>Time period:</strong> 2021-2023 combines drop + recovery into one period</li>
+<li><strong>Behavioral changes:</strong> WFH patterns not captured</li>
 </ul>
+<h3 id="what-the-model-cannot-do">What the Model Cannot Do</h3>
+<ul>
+<li><strong>Causal inference:</strong> Why do shelters matter less in high-poverty areas?</li>
+<li><strong>Recovery speed:</strong> Can’t separate initial drop from recovery rate</li>
+<li><strong>Optimal policies:</strong> Predicts outcomes, doesn’t prescribe solutions</li>
+</ul>
+<p><strong>Key point:</strong> Model is a <strong>prediction tool</strong>, not a causal analysis tool.</p>
+</section>
+<section id="ethical-concerns-safeguards" class="slide level2">
+<h2>Ethical Concerns &amp; Safeguards</h2>
 <h3 id="ethical-concerns">Ethical Concerns</h3>
 <ul>
-<li class="fragment">Underpredicting marginalized areas risks disinvestment<br>
-</li>
-<li class="fragment">Existing inequities may be reinforced</li>
+<li>Underpredicting marginalized areas risks disinvestment</li>
+<li>Existing inequities may be reinforced</li>
 </ul>
 <h3 id="safeguards">Safeguards</h3>
 <ul>
-<li class="fragment">Annual fairness audits<br>
-</li>
-<li class="fragment">Community engagement required pre-service changes<br>
-</li>
-<li class="fragment">“Do no harm” rule for high-poverty tracts</li>
+<li>Annual fairness audits</li>
+<li>Community engagement required</li>
+<li>“Do no harm” rule for high-poverty tracts</li>
+<li>Use as screening tool, not final decision-maker</li>
 </ul>
 </section>
 <section id="implementation-next-steps" class="slide level2">
 <h2>Implementation &amp; Next Steps</h2>
-<h3 id="how-septa-could-use-this">How SEPTA Could Use This</h3>
+<h3 id="how-septa-can-use-this">How SEPTA Can Use This</h3>
 <ul>
-<li class="fragment">Annual rerun tied to planning and budgeting<br>
+<li>Forecast ridership for planning and budgeting<br>
 </li>
-<li class="fragment">Dashboard for planners<br>
+<li>Dashboard for planners<br>
 </li>
-<li class="fragment">Integrate with stop-level redesign efforts</li>
+<li>Integrate with stop-level redesign efforts</li>
 </ul>
 <p>Future improvements: - Monthly data<br>
 - Weather &amp; job center integration<br>
@@ -339,27 +461,27 @@ Some high-need neighborhoods were consistently underpredicted → equity implica
 <h2>Backup Slides (Q&amp;A)</h2>
 <h3 id="why-negative-binomial">Why Negative Binomial?</h3>
 <ul>
-<li class="fragment">Poisson dispersion test → overdispersion<br>
+<li>Poisson dispersion test → overdispersion<br>
 </li>
-<li class="fragment">NB provides more reliable inference</li>
+<li>NB provides more reliable inference</li>
 </ul>
 <h3 id="model-validation">Model Validation</h3>
 <ul>
-<li class="fragment">Train/test split<br>
+<li>Train/test split<br>
 </li>
-<li class="fragment">FE structure<br>
+<li>FE structure<br>
 </li>
-<li class="fragment">Equity-focused interactions</li>
+<li>Equity-focused interactions</li>
 </ul>
 <h3 id="shark-tank-qa-practice">Shark Tank Q&amp;A Practice</h3>
 <ul>
-<li class="fragment">“Why this model?”<br>
+<li>“Why this model?”<br>
 </li>
-<li class="fragment">“How do you know it’s not overfitting?”<br>
+<li>“How do you know it’s not overfitting?”<br>
 </li>
-<li class="fragment">“What could go wrong if used incorrectly?”<br>
+<li>“What could go wrong if used incorrectly?”<br>
 </li>
-<li class="fragment">“How do you ensure equity?”</li>
+<li>“How do you ensure equity?”</li>
 </ul>
 
 

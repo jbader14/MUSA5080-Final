@@ -7,7 +7,7 @@ format:
   revealjs:
     theme: simple
     slide-number: true
-    incremental: true
+    incremental: false
     transition: fade
     footer: "MUSA 5080 · Iron Chef × Shark Tank × Kaggle"
 execute:
@@ -23,6 +23,34 @@ library(dplyr)
 library(scales)
 ```
 
+```{css, echo=FALSE}
+.reveal .slides section {
+  font-size: 0.85em;
+}
+
+.reveal ul {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.reveal li {
+  margin-bottom: 0.3em;
+}
+
+.reveal p {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.reveal h2 {
+  font-size: 1.5em;
+}
+
+.reveal h3 {
+  font-size: 1.2em;
+}
+```
+
 ---
 
 ## Predicting Transit Recovery to Support Equitable Bus Service
@@ -30,8 +58,8 @@ library(scales)
 - **Policy question:** How can SEPTA prioritize service & shelter investments post-COVID?
 - **Outcome:** Weekday bus ridership by census tract (2017–2023)
 - **Goal:** Provide a **predictive tool** for:
-  - Identifying resilient vs. fragile neighborhoods  
-  - Targeting equity-focused strategies
+  - Prioritizing neighborhoods for service restoration    
+  - Targeting investments in high-poverty, transit-dependent areas
 
 ---
 
@@ -45,8 +73,8 @@ library(scales)
   - Where to place shelters?
 - High-poverty, transit-dependent tracts risk being **left behind**
 
-**Decision our model informs:**  
-**Which tracts should SEPTA prioritize for post-COVID recovery investments?**
+- **Decision our model informs:**  
+- **Which tracts should SEPTA prioritize for additional service and shelter investments in 2024-2025?**
 
 ---
 
@@ -57,35 +85,43 @@ library(scales)
 - **Primary dataset:** SEPTA Bus Ridership (APC), by tract, 2017–2023  
 - **Spatial unit:** Census tracts (static)
 
-**Additional data sources:**
+- **Additional data sources:**
 
 - ACS poverty, vehicle access, population density  
 - Bus stop and shelter inventory  
 - Distance to rail  
 - Indego bike share KNN-3 distance  
 
-```{r, eval=FALSE}
-# knitr::include_graphics("figs/mode_line_chart.png")
+---
+
+## Average Daily Ridership by Transit Mode
+
+```{r, eval=TRUE, out.width='80%'}
+knitr::include_graphics("figs/mode_line_chart.png")
 ```
 
 ---
 
 ## Exploratory Data Analysis
 
-### Key EDA Insights
+- ### Key EDA Insights
 
-- Severe **shock** in 2019 → 2021  
-- Uneven **recovery** in 2021 → 2023  
+- Severe **shock** in 2019 → 2021: ~60% drop in ridership 
+- Uneven **recovery** in 2021 → 2023: some tracts recovered faster
 - Spatial variation in:
   - Ridership levels
   - Shelter coverage
   - Poverty, vehicle availability
 
-```{r, eval=FALSE}
-# knitr::include_graphics("figs/ridership_shock_vs_recovery.png")
-```
+---
 
-**EDA informed modeling decisions:**
+## Exploratory Data Analysis (cont.)
+
+<div style="text-align: center;">
+<img src="figs/ridership_shock_vs_recovery.png" style="width: 50%; height: auto;" />
+</div>
+
+- **EDA informed modeling decisions:**
 
 - Predict **counts** → Poisson / Negative Binomial  
 - Include **tract fixed effects**  
@@ -94,8 +130,6 @@ library(scales)
 ---
 
 ## Modeling Strategy
-
-### Approach within course toolbox
 
 - **Outcome:** total weekday ridership (count)
 - **Models tested:**
@@ -124,17 +158,17 @@ library(scales)
 
 ### How we validated
 
-- **Train:** 2017–2019 and 2021–2022  
+- **Train:** 2017–2019 (pre-COVID) and 2021–2022 (recovery)  
 - **Test:** 2023 (true held-out year)
 
 Validation metrics:
-- MAE  
-- RMSE  
-- MAPE  
-- AIC  
+- Mean Absolute Error (MAE)
+- Root Mean Squared Error (RMSE)
+- Mean Absolute Percentage Error(MAPE)
+- Akaike Information Criterion (AIC)
 
-```{r, eval=FALSE}
-# knitr::include_graphics("figs/model_comparison_table.png")
+```{r, eval=TRUE, fig.align='center', out.width='95%'}
+knitr::include_graphics("figs/model_comparison_table.png")
 ```
 
 ---
@@ -150,7 +184,7 @@ These models used:
 - KNN-3 Indego distance (Model 5)
 
 ```{r, eval=FALSE}
-# knitr::include_graphics("figs/model_performance.png")
+knitr::include_graphics("figs/model_performance.png")
 ```
 
 **Finding:**  
@@ -158,21 +192,66 @@ Equity-informed models consistently performed best.
 
 ---
 
+## Key Findings: What the Model Tells Us
+
+### 1. Fixed Effects Are Essential
+- Without tract FE: MAE = 1,355 (high)
+- With tract FE: MAE = 214-238 (good)
+- Unobserved tract characteristics significantly impact ridership
+
+### 2. Recovery Varies by Poverty
+- High-poverty tracts show **slightly larger post-COVID drop**
+- Suggests differential recovery needs by poverty level 
+
+### 3. Shelter Effects Depend on Context
+- Shelters associated with higher ridership overall, but this relationship is much weaker in high-poverty tracts ... Why? 
+
+---
+
+## Interpreting Model 4 Coefficients: Main Effects (on log scale)
+
+- **`trend = 0.21`**: Each year → ~21% growth (baseline trend)
+- **`post_covid = -1.13`**: Post-COVID period → ~68% drop from trend
+- **`pct_poverty = 346.90`**: Higher poverty → much higher baseline ridership (transit dependence)
+- **`pct_no_vehicle = 61.94`**: No vehicle → higher ridership
+- **`pct_sheltered = 85.09`**: More shelters → higher ridership
+
+---
+
+## Interpreting Model 4 Coefficients:Key Interactions (on log scale)
+
+- **`post_covid:pct_poverty = -0.10`**:  
+  High-poverty tracts had **slightly larger post-COVID drop**
+  
+- **`poverty_x_sheltered = -14,768`**:  
+  Shelter effect is **much weaker in high-poverty areas** which suggests shelters work differently in high-poverty contexts 
+
+**Interpretation:**  
+The model captures that recovery patterns and infrastructure effects vary by neighborhood context.
+
+---
+
 ## Equity & Error Patterns
 
 ### Understanding error distributions
 
-```{r, eval=FALSE}
-# knitr::include_graphics("figs/m4_pred_vs_actual.png")
+::: {.columns}
+::: {.column width="50%"}
+```{r, eval=TRUE, out.width='100%'}
+knitr::include_graphics("figs/pred_vs_actual.png")
 ```
+:::
 
-```{r, eval=FALSE}
-# knitr::include_graphics("figs/m4_error_by_poverty.png")
+::: {.column width="50%"}
+```{r, eval=TRUE, out.width='100%'}
+knitr::include_graphics("figs/error_by_poverty_plot.png")
 ```
+:::
+:::
 
 Questions explored:
 
-- Does the model underpredict high-poverty tracts?  
+- Does the model underpredict high-poverty tracts?
 - Are errors spatially clustered?  
 - Is the model equitable in practice?
 
@@ -180,13 +259,19 @@ Questions explored:
 
 ## Spatial Error Diagnostics
 
-```{r, eval=FALSE}
-# knitr::include_graphics("figs/m4_residuals_map.png")
+::: {.columns}
+::: {.column width="50%"}
+```{r, eval=TRUE, out.width='100%'}
+knitr::include_graphics("figs/residual_map.png")
 ```
+:::
 
-```{r, eval=FALSE}
-# knitr::include_graphics("figs/m4_abs_error_map.png")
+::: {.column width="50%"}
+```{r, eval=TRUE, out.width='100%'}
+knitr::include_graphics("figs/abs_error_map.png")
 ```
+:::
+:::
 
 **Insight:**  
 Some high-need neighborhoods were consistently underpredicted → equity implications.
@@ -205,33 +290,45 @@ Some high-need neighborhoods were consistently underpredicted → equity implica
 
 ---
 
-## Limitations & Safeguards
+## Limitations 
 
 ### Limitations
 
-- APC quality issues  
-- ACS lag  
-- Spatial autocorrelation persists  
-- Behavioral changes (WFH) not captured  
+- **Data issues:** APC quality, ACS lag, spatial autocorrelation (Moran's I = 0.145)
+- **Time period:** 2021-2023 combines drop + recovery into one period
+- **Behavioral changes:** WFH patterns not captured
 
-### Ethical Concerns
+### What the Model Cannot Do
 
-- Underpredicting marginalized areas risks disinvestment  
-- Existing inequities may be reinforced  
+- **Causal inference:** Why do shelters matter less in high-poverty areas?
+- **Recovery speed:** Can't separate initial drop from recovery rate
+- **Optimal policies:** Predicts outcomes, doesn't prescribe solutions
+
+**Key point:** Model is a **prediction tool**, not a causal analysis tool.
+
+---
+
+## Ethical Concerns & Safeguards 
+
+### Ethical Concerns 
+
+- Underpredicting marginalized areas risks disinvestment
+- Existing inequities may be reinforced
 
 ### Safeguards
 
-- Annual fairness audits  
-- Community engagement required pre-service changes  
-- “Do no harm” rule for high-poverty tracts  
+- Annual fairness audits
+- Community engagement required
+- "Do no harm" rule for high-poverty tracts
+- Use as screening tool, not final decision-maker
 
 ---
 
 ## Implementation & Next Steps
 
-### How SEPTA Could Use This
+### How SEPTA Can Use This
 
-- Annual rerun tied to planning and budgeting  
+- Forecast ridership for planning and budgeting  
 - Dashboard for planners  
 - Integrate with stop-level redesign efforts  
 

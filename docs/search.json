@@ -4,42 +4,42 @@
     "href": "presentation/presentation.html#predicting-transit-recovery-to-support-equitable-bus-service",
     "title": "Predicting Post-COVID Bus Ridership in Philadelphia",
     "section": "Predicting Transit Recovery to Support Equitable Bus Service",
-    "text": "Predicting Transit Recovery to Support Equitable Bus Service\n\nPolicy question: How can SEPTA prioritize service & shelter investments post-COVID?\nOutcome: Weekday bus ridership by census tract (2017–2023)\nGoal: Provide a predictive tool for:\n\nIdentifying resilient vs. fragile neighborhoods\n\nTargeting equity-focused strategies"
+    "text": "Predicting Transit Recovery to Support Equitable Bus Service\n\nPolicy question: How can SEPTA prioritize service & shelter investments post-COVID?\nOutcome: Weekday bus ridership by census tract (2017–2023)\nGoal: Provide a predictive tool for:\n\nPrioritizing neighborhoods for service restoration\n\nTargeting investments in high-poverty, transit-dependent areas"
   },
   {
     "objectID": "presentation/presentation.html#the-policy-problem",
     "href": "presentation/presentation.html#the-policy-problem",
     "title": "Predicting Post-COVID Bus Ridership in Philadelphia",
     "section": "The Policy Problem",
-    "text": "The Policy Problem\nWhy does this matter?\n\nCOVID drastically altered travel behavior\nSEPTA faces difficult decisions:\n\nWhere to restore service?\nWhere to place shelters?\n\nHigh-poverty, transit-dependent tracts risk being left behind\n\nDecision our model informs:\nWhich tracts should SEPTA prioritize for post-COVID recovery investments?"
+    "text": "The Policy Problem\nWhy does this matter?\n\nCOVID drastically altered travel behavior\nSEPTA faces difficult decisions:\n\nWhere to restore service?\nWhere to place shelters?\n\nHigh-poverty, transit-dependent tracts risk being left behind\nDecision our model informs:\n\nWhich tracts should SEPTA prioritize for additional service and shelter investments in 2024-2025?"
   },
   {
     "objectID": "presentation/presentation.html#data-spatial-unit",
     "href": "presentation/presentation.html#data-spatial-unit",
     "title": "Predicting Post-COVID Bus Ridership in Philadelphia",
     "section": "Data & Spatial Unit",
-    "text": "Data & Spatial Unit\nThe “Secret Ingredient” + Enhancements\n\nPrimary dataset: SEPTA Bus Ridership (APC), by tract, 2017–2023\n\nSpatial unit: Census tracts (static)\n\nAdditional data sources:\n\nACS poverty, vehicle access, population density\n\nBus stop and shelter inventory\n\nDistance to rail\n\nIndego bike share KNN-3 distance"
+    "text": "Data & Spatial Unit\nThe “Secret Ingredient” + Enhancements\n\nPrimary dataset: SEPTA Bus Ridership (APC), by tract, 2017–2023\n\nSpatial unit: Census tracts (static)\nAdditional data sources:\nACS poverty, vehicle access, population density\n\nBus stop and shelter inventory\n\nDistance to rail\n\nIndego bike share KNN-3 distance"
   },
   {
     "objectID": "presentation/presentation.html#exploratory-data-analysis",
     "href": "presentation/presentation.html#exploratory-data-analysis",
     "title": "Predicting Post-COVID Bus Ridership in Philadelphia",
     "section": "Exploratory Data Analysis",
-    "text": "Exploratory Data Analysis\nKey EDA Insights\n\nSevere shock in 2019 → 2021\n\nUneven recovery in 2021 → 2023\n\nSpatial variation in:\n\nRidership levels\nShelter coverage\nPoverty, vehicle availability\n\n\nEDA informed modeling decisions:\n\nPredict counts → Poisson / Negative Binomial\n\nInclude tract fixed effects\n\nAdd equity-focused interactions"
+    "text": "Exploratory Data Analysis\n\nKey EDA Insights\nSevere shock in 2019 → 2021: ~60% drop in ridership\nUneven recovery in 2021 → 2023: some tracts recovered faster\nSpatial variation in:\n\nRidership levels\nShelter coverage\nPoverty, vehicle availability"
   },
   {
     "objectID": "presentation/presentation.html#modeling-strategy",
     "href": "presentation/presentation.html#modeling-strategy",
     "title": "Predicting Post-COVID Bus Ridership in Philadelphia",
     "section": "Modeling Strategy",
-    "text": "Modeling Strategy\nApproach within course toolbox\n\nOutcome: total weekday ridership (count)\nModels tested:\n\nPoisson (overdispersed)\nNegative Binomial (final)\n\nFeatures included:\n\nTrend, post_covid\n\n% poverty, % no vehicle, population density\n\nStop/shelter density\nDistance to rail\n\nKNN-3 Indego distance\n\nFixed effects for tracts\n\nEquity interactions"
+    "text": "Modeling Strategy\n\nOutcome: total weekday ridership (count)\nModels tested:\n\nPoisson (overdispersed)\nNegative Binomial (final)\n\nFeatures included:\n\nTrend, post_covid\n\n% poverty, % no vehicle, population density\n\nStop/shelter density\nDistance to rail\n\nKNN-3 Indego distance\n\nFixed effects for tracts\n\nEquity interactions"
   },
   {
     "objectID": "presentation/presentation.html#traintest-design",
     "href": "presentation/presentation.html#traintest-design",
     "title": "Predicting Post-COVID Bus Ridership in Philadelphia",
     "section": "Train/Test Design",
-    "text": "Train/Test Design\nHow we validated\n\nTrain: 2017–2019 and 2021–2022\n\nTest: 2023 (true held-out year)\n\nValidation metrics: - MAE\n- RMSE\n- MAPE\n- AIC"
+    "text": "Train/Test Design\nHow we validated\n\nTrain: 2017–2019 (pre-COVID) and 2021–2022 (recovery)\n\nTest: 2023 (true held-out year)\n\nValidation metrics: - Mean Absolute Error (MAE) - Root Mean Squared Error (RMSE) - Mean Absolute Percentage Error(MAPE) - Akaike Information Criterion (AIC)"
   },
   {
     "objectID": "presentation/presentation.html#model-performance-held-out-2023",
@@ -53,14 +53,14 @@
     "href": "presentation/presentation.html#equity-error-patterns",
     "title": "Predicting Post-COVID Bus Ridership in Philadelphia",
     "section": "Equity & Error Patterns",
-    "text": "Equity & Error Patterns\nUnderstanding error distributions\nQuestions explored:\n\nDoes the model underpredict high-poverty tracts?\n\nAre errors spatially clustered?\n\nIs the model equitable in practice?"
+    "text": "Equity & Error Patterns\nUnderstanding error distributions\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nQuestions explored:\n\nDoes the model underpredict high-poverty tracts?\nAre errors spatially clustered?\n\nIs the model equitable in practice?"
   },
   {
     "objectID": "presentation/presentation.html#spatial-error-diagnostics",
     "href": "presentation/presentation.html#spatial-error-diagnostics",
     "title": "Predicting Post-COVID Bus Ridership in Philadelphia",
     "section": "Spatial Error Diagnostics",
-    "text": "Spatial Error Diagnostics\nInsight:\nSome high-need neighborhoods were consistently underpredicted → equity implications."
+    "text": "Spatial Error Diagnostics\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nInsight:\nSome high-need neighborhoods were consistently underpredicted → equity implications."
   },
   {
     "objectID": "presentation/presentation.html#policy-recommendations",
@@ -74,14 +74,14 @@
     "href": "presentation/presentation.html#limitations-safeguards",
     "title": "Predicting Post-COVID Bus Ridership in Philadelphia",
     "section": "Limitations & Safeguards",
-    "text": "Limitations & Safeguards\nLimitations\n\nAPC quality issues\n\nACS lag\n\nSpatial autocorrelation persists\n\nBehavioral changes (WFH) not captured\n\nEthical Concerns\n\nUnderpredicting marginalized areas risks disinvestment\n\nExisting inequities may be reinforced\n\nSafeguards\n\nAnnual fairness audits\n\nCommunity engagement required pre-service changes\n\n“Do no harm” rule for high-poverty tracts"
+    "text": "Limitations & Safeguards\nLimitations\n\nData issues: APC quality, ACS lag, spatial autocorrelation (Moran’s I = 0.145)\nTime period: 2021-2023 combines drop + recovery into one period\nBehavioral changes: WFH patterns not captured\n\nWhat the Model Cannot Do\n\nCausal inference: Why do shelters matter less in high-poverty areas?\nRecovery speed: Can’t separate initial drop from recovery rate\nOptimal policies: Predicts outcomes, doesn’t prescribe solutions\n\nKey point: Model is a prediction tool, not a causal analysis tool.\nEthical Concerns\n\nUnderpredicting marginalized areas risks disinvestment\nExisting inequities may be reinforced\n\nSafeguards\n\nAnnual fairness audits\nCommunity engagement required\n“Do no harm” rule for high-poverty tracts\nUse as screening tool, not final decision-maker"
   },
   {
     "objectID": "presentation/presentation.html#implementation-next-steps",
     "href": "presentation/presentation.html#implementation-next-steps",
     "title": "Predicting Post-COVID Bus Ridership in Philadelphia",
     "section": "Implementation & Next Steps",
-    "text": "Implementation & Next Steps\nHow SEPTA Could Use This\n\nAnnual rerun tied to planning and budgeting\n\nDashboard for planners\n\nIntegrate with stop-level redesign efforts\n\nFuture improvements: - Monthly data\n- Weather & job center integration\n- Spatial lag/error models"
+    "text": "Implementation & Next Steps\nHow SEPTA Can Use This\n\nForecast ridership for planning and budgeting\n\nDashboard for planners\n\nIntegrate with stop-level redesign efforts\n\nFuture improvements: - Monthly data\n- Weather & job center integration\n- Spatial lag/error models"
   },
   {
     "objectID": "presentation/presentation.html#backup-slides-qa",
@@ -236,5 +236,61 @@
     "title": "MUSA 5080 Final Project",
     "section": "",
     "text": "Executive Summary (For the Mayor and SEPTA Board):\nTraditional predictive models for public transit planning and other industries alike were rendered after the detrimental societal effects of the COVID-19 pandemic. For SEPTA in Philadelphia, there was no data recorded for an entire calendar year in 2020, severely dampening the predictive power of historical transit data. This project aims at the development of a new predictive framework for SEPTA bus ridership, instead of modeling a simple trend analysis around bus demand. We want the differential recovery of neighborhoods to event like the COVID pandemic to be at the forefront of our model, based on socioeconomic patterns in Philadelphia. Census tracts characterized as high-poverty neighborhoods experienced the highest losses to bus ridership from the pandemic shock and the highest gains post-pandemic, This illustrates low-income workers to be the backbone of the SEPTA system. Their ridership provides a “floor” that protected total system collapse in 2021, while they are driving current ridership recovery back to pre-COVID levels. Intuitively, lower income workers tend to work essential jobs that cannot be done remotely, leading to their larger contributions in ridership levels.\nOur final model (Negative Binomial with Fixed Effects and Demographic Interactions) accurately predicts ridership by tract with an average error of around 213 daily riders. We argue that SEPTA’s current capital planning does not align with the reality of continuing to protect and provide for underserved communities. Not only because it is the ethical thing to do, but also they are their strongest customer base. Our recommendation is to shift investment strategies to protecting high-ridership, high-poverty areas as “Transit Resilience Zones”. These zones require additional route frequency and physical infrastructure (bus shelters) to provide to these higher demand communities. Lastly, these zones also must be protected against route terminations from any future SEPTA budget constraints.\n\nMembers: Jack Bader, Joey Cahill, Sam Sen,\nDate: December 8th, 2025"
+  },
+  {
+    "objectID": "presentation/presentation.html#key-findings-what-the-model-tells-us",
+    "href": "presentation/presentation.html#key-findings-what-the-model-tells-us",
+    "title": "Predicting Post-COVID Bus Ridership in Philadelphia",
+    "section": "Key Findings: What the Model Tells Us",
+    "text": "Key Findings: What the Model Tells Us\n1. Fixed Effects Are Essential\n\nWithout tract FE: MAE = 1,355 (high)\nWith tract FE: MAE = 214-238 (good)\nUnobserved tract characteristics significantly impact ridership\n\n2. Recovery Varies by Poverty\n\nHigh-poverty tracts show slightly larger post-COVID drop\nSuggests differential recovery needs by poverty level\n\n3. Shelter Effects Depend on Context\n\nShelters associated with higher ridership overall, but this relationship is much weaker in high-poverty tracts … Why?"
+  },
+  {
+    "objectID": "presentation/presentation.html#interpreting-model-4-coefficients",
+    "href": "presentation/presentation.html#interpreting-model-4-coefficients",
+    "title": "Predicting Post-COVID Bus Ridership in Philadelphia",
+    "section": "Interpreting Model 4 Coefficients",
+    "text": "Interpreting Model 4 Coefficients\nMain Effects (on log scale)\n\ntrend = 0.21: Each year → ~21% growth (baseline trend)\npost_covid = -1.13: Post-COVID period → ~68% drop from trend\npct_poverty = 346.90: Higher poverty → much higher baseline ridership (transit dependence)\npct_no_vehicle = 61.94: No vehicle → higher ridership\npct_sheltered = 85.09: More shelters → higher ridership\n\nKey Interactions\n\npost_covid:pct_poverty = -0.10:\nHigh-poverty tracts had slightly larger post-COVID drop\npoverty_x_sheltered = -14,768:\nShelter effect is much weaker in high-poverty areas which suggests shelters work differently in high-poverty contexts\n\nInterpretation:\nThe model captures that recovery patterns and infrastructure effects vary by neighborhood context."
+  },
+  {
+    "objectID": "presentation/presentation.html#average-daily-ridership-by-transit-mode",
+    "href": "presentation/presentation.html#average-daily-ridership-by-transit-mode",
+    "title": "Predicting Post-COVID Bus Ridership in Philadelphia",
+    "section": "Average Daily Ridership by Transit Mode",
+    "text": "Average Daily Ridership by Transit Mode"
+  },
+  {
+    "objectID": "presentation/presentation.html#exploratory-data-analysis-cont.",
+    "href": "presentation/presentation.html#exploratory-data-analysis-cont.",
+    "title": "Predicting Post-COVID Bus Ridership in Philadelphia",
+    "section": "Exploratory Data Analysis (cont.)",
+    "text": "Exploratory Data Analysis (cont.)\n\n\n\n\nEDA informed modeling decisions:\nPredict counts → Poisson / Negative Binomial\n\nInclude tract fixed effects\n\nAdd equity-focused interactions"
+  },
+  {
+    "objectID": "presentation/presentation.html#interpreting-model-4-coefficients-main-effects-on-log-scale",
+    "href": "presentation/presentation.html#interpreting-model-4-coefficients-main-effects-on-log-scale",
+    "title": "Predicting Post-COVID Bus Ridership in Philadelphia",
+    "section": "Interpreting Model 4 Coefficients: Main Effects (on log scale)",
+    "text": "Interpreting Model 4 Coefficients: Main Effects (on log scale)\n\ntrend = 0.21: Each year → ~21% growth (baseline trend)\npost_covid = -1.13: Post-COVID period → ~68% drop from trend\npct_poverty = 346.90: Higher poverty → much higher baseline ridership (transit dependence)\npct_no_vehicle = 61.94: No vehicle → higher ridership\npct_sheltered = 85.09: More shelters → higher ridership"
+  },
+  {
+    "objectID": "presentation/presentation.html#interpreting-model-4-coefficientskey-interactions-on-log-scale",
+    "href": "presentation/presentation.html#interpreting-model-4-coefficientskey-interactions-on-log-scale",
+    "title": "Predicting Post-COVID Bus Ridership in Philadelphia",
+    "section": "Interpreting Model 4 Coefficients:Key Interactions (on log scale)",
+    "text": "Interpreting Model 4 Coefficients:Key Interactions (on log scale)\n\npost_covid:pct_poverty = -0.10:\nHigh-poverty tracts had slightly larger post-COVID drop\npoverty_x_sheltered = -14,768:\nShelter effect is much weaker in high-poverty areas which suggests shelters work differently in high-poverty contexts\n\nInterpretation:\nThe model captures that recovery patterns and infrastructure effects vary by neighborhood context."
+  },
+  {
+    "objectID": "presentation/presentation.html#limitations",
+    "href": "presentation/presentation.html#limitations",
+    "title": "Predicting Post-COVID Bus Ridership in Philadelphia",
+    "section": "Limitations",
+    "text": "Limitations\nLimitations\n\nData issues: APC quality, ACS lag, spatial autocorrelation (Moran’s I = 0.145)\nTime period: 2021-2023 combines drop + recovery into one period\nBehavioral changes: WFH patterns not captured\n\nWhat the Model Cannot Do\n\nCausal inference: Why do shelters matter less in high-poverty areas?\nRecovery speed: Can’t separate initial drop from recovery rate\nOptimal policies: Predicts outcomes, doesn’t prescribe solutions\n\nKey point: Model is a prediction tool, not a causal analysis tool."
+  },
+  {
+    "objectID": "presentation/presentation.html#ethical-concerns-safeguards",
+    "href": "presentation/presentation.html#ethical-concerns-safeguards",
+    "title": "Predicting Post-COVID Bus Ridership in Philadelphia",
+    "section": "Ethical Concerns & Safeguards",
+    "text": "Ethical Concerns & Safeguards\nEthical Concerns\n\nUnderpredicting marginalized areas risks disinvestment\nExisting inequities may be reinforced\n\nSafeguards\n\nAnnual fairness audits\nCommunity engagement required\n“Do no harm” rule for high-poverty tracts\nUse as screening tool, not final decision-maker"
   }
 ]
