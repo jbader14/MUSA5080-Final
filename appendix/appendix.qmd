@@ -58,6 +58,8 @@ library(MASS)
 library(jsonlite)
 library(dplyr)
 library(purrr)
+library(spdep)
+library(rsample)
 
 
 # Get rid of scientific notation. We gotta look good!
@@ -901,7 +903,7 @@ mape <- function(obs, pred) {
 pred_m1 <- predict(m1_nb, newdata = tract_test,   type = "response")
 pred_m2 <- predict(m2_nb, newdata = tract_test,   type = "response")
 pred_m3 <- predict(m3_nb, newdata = tract_test,   type = "response")
-pred_m4 <- predict(m4_nb,     newdata = tract_test_m4, type = "response")  # new Model 4
+pred_m4 <- predict(m4_nb, newdata = tract_test_m4, type = "response")  # new Model 4
 pred_m5 <- predict(m5_nb, newdata = tract_test,   type = "response")
 
 # Observed outcomes
@@ -950,5 +952,120 @@ results <- tibble(
 kable(results, digits = 3, caption = "Model Performance Comparison") |>
   kable_styling(bootstrap_options = c("striped", "condensed"), full_width = FALSE)
 ```
+
+# Error Analysis
+
+```{r m4_error_table}
+# Recompute predictions to be safe
+pred_m4 <- predict(m4_nb, newdata = tract_test_m4, type = "response")
+
+errors_m4 <- tract_test_m4 %>%
+  mutate(
+    pred        = pred_m4,
+    residual    = total_ridership - pred,             # actual - predicted
+    abs_error   = abs(residual),
+    pct_error   = if_else(total_ridership > 0,
+                          residual / total_ridership, # signed %
+                          NA_real_)
+  )
+
+# Quick numeric summary of error distribution
+summary(errors_m4[, c("residual", "abs_error", "pct_error")])
+```
+
+```{r m4_pred_vs_actual}
+ggplot(errors_m4, aes(x = total_ridership, y = pred)) +
+  geom_point(alpha = 0.5) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+  scale_x_continuous(labels = scales::comma) +
+  scale_y_continuous(labels = scales::comma) +
+  labs(
+    title = "Model 4: Predicted vs. Actual Ridership (2023 Test Year)",
+    x = "Actual Total Ridership (Weekday, 2023)",
+    y = "Predicted Total Ridership"
+  ) +
+  theme_minimal()
+```
+
+```{r m4_error_by_poverty}
+errors_m4_equity <- errors_m4 %>%
+  mutate(
+    pov_quintile = ntile(pct_poverty, 5)
+  ) %>%
+  group_by(pov_quintile) %>%
+  summarise(
+    mean_poverty = mean(pct_poverty, na.rm = TRUE),
+    MAE          = mean(abs_error, na.rm = TRUE),
+    MAPE         = mean(abs(pct_error), na.rm = TRUE)
+  )
+
+kable(errors_m4_equity, digits = 3,
+      col.names = c("Poverty Quintile", "Avg. Poverty Rate",
+                    "MAE (Riders)", "MAPE")) %>%
+  kable_styling(bootstrap_options = c("striped", "condensed"), full_width = FALSE)
+```
+
+```{r m4_error_by_poverty_plot}
+ggplot(errors_m4_equity,
+       aes(x = factor(pov_quintile), y = MAE)) +
+  geom_col() +
+  labs(
+    title = "Model 4 Error by Poverty Quintile",
+    x = "Poverty Quintile (1 = Lowest, 5 = Highest)",
+    y = "Mean Absolute Error (Riders)"
+  ) +
+  theme_minimal()
+```
+
+```{r m4_errors_spatial_join}
+errors_m4_sf <- tracts_sf %>%
+  left_join(
+    errors_m4 %>%
+      dplyr::select(census_tract_id, residual, abs_error, pct_error),
+    by = c("GEOID" = "census_tract_id")
+  )
+```
+
+```{r m4_residual_map}
+ggplot(errors_m4_sf) +
+  geom_sf(aes(fill = residual), color = NA) +
+  scale_fill_distiller(
+    palette = "RdBu", direction = 1,
+    name = "Residual (Actual - Predicted)"
+  ) +
+  labs(
+    title = "Model 4 Residuals by Census Tract (2023)",
+    subtitle = "Red = underpredicted (more riders than expected), Blue = overpredicted"
+  ) +
+  theme_void()
+```
+
+```{r m4_abs_error_map}
+ggplot(errors_m4_sf) +
+  geom_sf(aes(fill = abs_error), color = NA) +
+  scale_fill_viridis_c(name = "Absolute Error") +
+  labs(
+    title = "Model 4 Absolute Error by Census Tract (2023)",
+    subtitle = "Where is the model least accurate?"
+  ) +
+  theme_void()
+```
+```{r m4_morans_I}
+# Keep only tracts with residuals
+resid_data <- errors_m4_sf %>%
+  filter(!is.na(residual))
+
+coords <- st_coordinates(st_centroid(resid_data))
+
+# k-nearest neighbors (k = 4)
+nb <- knn2nb(knearneigh(coords, k = 4))
+lw <- nb2listw(nb, style = "W")
+
+moran_res <- moran.test(resid_data$residual, lw)
+
+moran_res
+```
+
+Moran’s I = 0.145 (z = 4.81, p < 0.001) indicates statistically significant positive spatial autocorrelation in the residuals. This means neighboring census tracts tend to have similar prediction errors, suggesting some spatial structure in ridership recovery that Model 4 does not fully capture.
 
 

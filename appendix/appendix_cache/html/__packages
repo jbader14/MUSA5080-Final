@@ -25,3 +25,6 @@ patchwork
 MASS
 jsonlite
 nngeo
+spData
+spdep
+rsample
