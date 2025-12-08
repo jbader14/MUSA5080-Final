@@ -973,6 +973,113 @@ errors_m4 <- tract_test_m4 %>%
 summary(errors_m4[, c("residual", "abs_error", "pct_error")])
 ```
 
+### 5- Fold Cross Vlaidation
+```{r}
+# Helper metrics
+mae <- function(obs, pred) mean(abs(obs - pred), na.rm = TRUE)
+
+rmse <- function(obs, pred) sqrt(mean((obs - pred)^2, na.rm = TRUE))
+
+# Pre-2023 years only (your effective training window)
+cv_years <- sort(unique(model_data$year[model_data$year != 2023]))
+
+cv_years
+```
+```{r }
+# Initialize tibble to store results
+cv_results_m4_year <- tibble::tibble(
+  holdout_year = integer(),
+  MAE = numeric(),
+  RMSE = numeric()
+)
+```
+
+
+
+```{r}
+# Loop over each holdout year
+for (y in cv_years) {
+  
+  # 1. Training data:
+  #    - years: all non-2023 years except the holdout year
+  #    - require lag1_ridership (same restriction as Model 4)
+  train_cv <- model_data %>%
+    dplyr::filter(
+      year != 2023,
+      year != y,
+      !is.na(lag1_ridership)
+    ) %>%
+    dplyr::mutate(
+      census_tract_id = factor(census_tract_id)
+    )
+  
+  # 2. Validation data:
+  #    - year: the held-out year
+  #    - require lag1_ridership
+  valid_cv <- model_data %>%
+    dplyr::filter(
+      year == y,
+      !is.na(lag1_ridership)
+    ) %>%
+    dplyr::mutate(
+      # Force factor levels to match training data
+      census_tract_id = factor(census_tract_id, levels = levels(train_cv$census_tract_id))
+    ) %>%
+    # Drop any tracts that never appear in training (would be NA after factoring)
+    dplyr::filter(!is.na(census_tract_id))
+  
+  # 3. Fit Model 4 on training data
+  m4_nb_cv <- MASS::glm.nb(
+    total_ridership ~ 
+      trend +
+      post_covid +
+      pct_poverty +
+      pct_no_vehicle +
+      pct_sheltered +
+      poverty_x_sheltered +
+      post_covid:pct_poverty +
+      census_tract_id,
+    data = train_cv
+  )
+  
+  # 4. Predict onto held-out year
+  preds <- predict(m4_nb_cv, newdata = valid_cv, type = "response")
+  
+  # 5. Compute metrics for this fold
+  fold_mae  <- mae(valid_cv$total_ridership, preds)
+  fold_rmse <- rmse(valid_cv$total_ridership, preds)
+  
+  # 6. Store results
+  cv_results_m4_year <- dplyr::bind_rows(
+    cv_results_m4_year,
+    tibble::tibble(
+      holdout_year = y,
+      MAE  = fold_mae,
+      RMSE = fold_rmse
+    )
+  )
+}
+
+cv_results_m4_year
+
+```
+
+```{r Mean CV Error}
+# Overall average CV performance across years
+cv_summary_m4_year <- cv_results_m4_year %>%
+  dplyr::summarise(
+    mean_MAE  = mean(MAE),
+    sd_MAE    = sd(MAE),
+    mean_RMSE = mean(RMSE),
+    sd_RMSE   = sd(RMSE)
+  )
+
+cv_summary_m4_year
+```
+
+
+
+
 ```{r m4_pred_vs_actual}
 ggplot(errors_m4, aes(x = total_ridership, y = pred)) +
   geom_point(alpha = 0.5) +
