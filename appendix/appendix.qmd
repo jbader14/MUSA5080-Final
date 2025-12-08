@@ -74,7 +74,7 @@ census_api_key(key)
 ```
 
 # Load Spatial and System Data
-```{r load_ss_data}
+```{r load_ss_data, message=FALSE, warning=FALSE, results='hide'}
 # 1. Spatial Boundaries (Tracts)
 tracts_sf <- tracts(state = "PA", county = "Philadelphia", year = 2021, cb = TRUE) |>
   st_transform(26918) |>
@@ -683,9 +683,14 @@ cat("M3 FE + Interactions MAE:", round(mae_m3, 2))
 ```
 ## Model 4: Equity Focused FE Model of Post-COVID Transit Recovery
 
+::: callout-note
+# Key Modeling Decision: Model 4
+
 Model 4 uses a slightly smaller training dataset because it requires information from the previous year to construct lagged and interaction-based features (e.g., lag1_ridership and poverty_x_sheltered). Tracts without a prior-year observation cannot contribute meaningful values for these predictors, so they are excluded from training.
 
 This is not a methodological inconsistency: all models are still evaluated on the same held-out 2023 test data, ensuring fair and comparable predictive accuracy. The reduced training sample reflects the structural requirements of the model, not selective filtering, and the improvement in accuracy demonstrates that incorporating prior-year trends and equity-focused interactions offers genuine predictive value.
+
+:::
 
 ```{r add_features_m4}
 model_data <- model_data %>%
@@ -979,7 +984,7 @@ errors_m4 <- tract_test_m4 %>%
 summary(errors_m4[, c("residual", "abs_error", "pct_error")])
 ```
 
-### 5- Fold Cross Vlaidation
+### 5- Fold Cross Validation
 ```{r}
 # Helper metrics
 mae <- function(obs, pred) mean(abs(obs - pred), na.rm = TRUE)
@@ -1179,6 +1184,9 @@ moran_res <- moran.test(resid_data$residual, lw)
 moran_res
 ```
 
+::: callout-note
+# Moran's I Interpretation
+
 Moran’s I = 0.145 (z = 4.81, p < 0.001) indicates statistically significant positive spatial autocorrelation in the residuals. This means neighboring census tracts tend to have similar prediction errors, suggesting some spatial structure in ridership recovery that Model 4 does not fully capture.
 
-
+:::
