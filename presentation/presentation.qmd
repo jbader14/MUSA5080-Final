@@ -102,9 +102,13 @@ knitr::include_graphics("figs/mode_line_chart.png")
 
 ---
 
-## Exploratory Data Analysis
+## Exploratory Data Analysis {.eda-slide}
 
-- ### Key EDA Insights
+::: {.columns}
+
+::: {.column width="40%"}
+
+### Key EDA Insights
 
 - Severe **shock** in 2019 → 2021: ~60% drop in ridership 
 - Uneven **recovery** in 2021 → 2023: some tracts recovered faster
@@ -112,6 +116,18 @@ knitr::include_graphics("figs/mode_line_chart.png")
   - Ridership levels
   - Shelter coverage
   - Poverty, vehicle availability
+
+:::
+
+::: {.column width="60%"}
+
+```{r, out.width="100%", fig.align="center"}
+knitr::include_graphics("figs/shockandrecovery.png")
+```
+
+:::
+
+:::
 
 ---
 
@@ -337,28 +353,3 @@ Future improvements:
 - Weather & job center integration  
 - Spatial lag/error models  
 
----
-
-## Backup Slides (Q&A)
-
-### Why Negative Binomial?
-
-- Poisson dispersion test → overdispersion  
-- NB provides more reliable inference  
-
-### Model Validation
-
-- Train/test split  
-- FE structure  
-- Equity-focused interactions  
-
-```{r, eval=FALSE}
-# broom::tidy(m4_nb) |> head(10)
-```
-
-### Shark Tank Q&A Practice
-
-- “Why this model?”  
-- “How do you know it's not overfitting?”  
-- “What could go wrong if used incorrectly?”  
-- “How do you ensure equity?”

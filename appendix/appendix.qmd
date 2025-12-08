@@ -108,16 +108,6 @@ all_stops <- st_read("data/all_transit_stops.geojson") |>
 
 :::
 
-
-Data Sources
-SEPTA Bus Ridership (APC): Average daily boardings/alightings by Census Tract (Source: SEPTA Open Data).
-
-SEPTA Stop Inventory: Geospatial locations of all bus stops (Source: SEPTA GIS).
-
-Bus Shelters: Point locations of street furniture (Source: OpenDataPhilly).
-
-Census ACS (2017-2021): Demographic context (Poverty, Vehicle Ownership, Population Density) via tidycensus.
-
 # Load Ridership Data
 ```{r load_ridership_data}
 # 1. Tract-Level Ridership (Raw)
@@ -582,6 +572,22 @@ model_data <- bus_panel |>
   ) |>
   filter(!is.na(total_ridership))
 ```
+
+
+::: callout-note
+# Key Modeling Decision: Only Predict Weekdays
+
+- In our original modeling workflow, we attempted to model all day of week types found in the data: weekday, Saturday, and Sunday. However, we found that our model struggled to accurately predict for all three types in our initial findings.
+
+- Even when incorporating dummy variables for each day of the week type, the model failed to learn differences in temporal patterns from those variables alone. In other words, it is not as simple to say that weekdays and weekends had the same travel patterns at different levels for the Fall season.
+
+- Weekdays are driven by commuting for work, highlighting inelastic demand, where they must take the bus. Conversely, weekends are driven by discretionary travel where demand is highly elastic and irregular that isn't easily modelled from seasonal data alone. If we had access to daily data, it would be a much easier task to incorporate days of the week under the same model.
+
+- As a result, weekdays have much more stable demand with less variation. However, for example, Sundays could be problematic to model with high variation due to weekend events such as Eagles games that we cannot directly capture from seasonal data. Even more broady, without daily data, a key factor like weather could not be used either.
+
+- Thus, we came to the decision to only model for weekdays. Intuitively, this choice makes sense since the most regular transit patterns occur on weekdays with the most demand. Building a predictive model for weekdays is the better options to derive insights for meaningful policy considerations.
+:::
+
 
 ```{r}
 # 1. Define Error Metric

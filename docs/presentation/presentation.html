@@ -223,10 +223,12 @@ Jack Bader, Same Sen, Joey Cahill
 <h2>Average Daily Ridership by Transit Mode</h2>
 
 <img data-src="figs/mode_line_chart.png" style="width:80.0%" class="r-stretch"></section>
-<section id="exploratory-data-analysis" class="slide level2">
+<section id="exploratory-data-analysis" class="slide level2 eda-slide">
 <h2>Exploratory Data Analysis</h2>
+<div class="columns">
+<div class="column" style="width:40%;">
+<h3 id="key-eda-insights">Key EDA Insights</h3>
 <ul>
-<li><h3 id="key-eda-insights">Key EDA Insights</h3></li>
 <li>Severe <strong>shock</strong> in 2019 → 2021: ~60% drop in ridership</li>
 <li>Uneven <strong>recovery</strong> in 2021 → 2023: some tracts recovered faster</li>
 <li>Spatial variation in:
@@ -236,6 +238,17 @@ Jack Bader, Same Sen, Joey Cahill
 <li>Poverty, vehicle availability</li>
 </ul></li>
 </ul>
+</div><div class="column" style="width:60%;">
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure>
+<p><img data-src="figs/shockandrecovery.png" class="quarto-figure quarto-figure-center" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+</div></div>
 </section>
 <section id="exploratory-data-analysis-cont." class="slide level2">
 <h2>Exploratory Data Analysis (cont.)</h2>
@@ -456,33 +469,6 @@ Some high-need neighborhoods were consistently underpredicted → equity implica
 <p>Future improvements: - Monthly data<br>
 - Weather &amp; job center integration<br>
 - Spatial lag/error models</p>
-</section>
-<section id="backup-slides-qa" class="slide level2">
-<h2>Backup Slides (Q&amp;A)</h2>
-<h3 id="why-negative-binomial">Why Negative Binomial?</h3>
-<ul>
-<li>Poisson dispersion test → overdispersion<br>
-</li>
-<li>NB provides more reliable inference</li>
-</ul>
-<h3 id="model-validation">Model Validation</h3>
-<ul>
-<li>Train/test split<br>
-</li>
-<li>FE structure<br>
-</li>
-<li>Equity-focused interactions</li>
-</ul>
-<h3 id="shark-tank-qa-practice">Shark Tank Q&amp;A Practice</h3>
-<ul>
-<li>“Why this model?”<br>
-</li>
-<li>“How do you know it’s not overfitting?”<br>
-</li>
-<li>“What could go wrong if used incorrectly?”<br>
-</li>
-<li>“How do you ensure equity?”</li>
-</ul>
 
 
 </section>
